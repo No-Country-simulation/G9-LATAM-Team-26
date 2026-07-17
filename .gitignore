@@ -1,0 +1,64 @@
+# ==========================================
+# Archivos del Sistema Operativo
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ==========================================
+# Java / Spring Boot / Maven
+# ==========================================
+target/
+*.jar
+*.war
+*.ear
+*.class
+.factorypath
+.mvn/wrapper/maven-wrapper.properties
+
+# ==========================================
+# Python / Ciencia de Datos (IA)
+# ==========================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.env
+.ipynb_checkpoints/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ==========================================
+# Entornos de Desarrollo (IDEs)
+# ==========================================
+# VS Code
+.vscode/
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.settings/
+.project
+.classpath
+
+# ==========================================
+# Frontend
+# ==========================================
+node_modules/
+dist/
+build/
+.npm/
