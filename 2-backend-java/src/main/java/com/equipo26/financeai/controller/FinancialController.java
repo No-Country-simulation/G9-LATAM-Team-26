@@ -7,38 +7,31 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponentsBuilder;
 
 /*
     Controlador REST encargado de recibir las solicitudes HTTP
-    relacionadas con el analisis financiero de los usuarios
+    relacionadas con el análisis financiero de los usuarios
 */
 
 @RestController
-@RequestMapping("/analisis-financiero")//Ruta de la solicitudes del controlador
+@RequestMapping("/analisis-financiero")
 public class FinancialController {
 
     @Autowired
     private FinancialService financialService;
 
-    //Manda información financiera del usuario
+    // Recibe la información financiera del usuario y retorna el diagnóstico
     @PostMapping
-    public ResponseEntity<FinancialResponse> registrarFinanzas
-        //@Valid ejecuta las validaciones definidas en la clase FinancialRequest
-            (@RequestBody @Valid FinancialRequest datos, UriComponentsBuilder uriComponentsBuilder) {
-        //Calcula análisis financiero y devuelve DTO con el resultado
+    public ResponseEntity<FinancialResponse> registrarFinanzas(
+            @RequestBody @Valid FinancialRequest datos) {
+
         FinancialResponse resultado = financialService.analizar(datos);
-        //Construye la URI del recurso creado para incluirla en la respuesta HTTP
-        var uri = uriComponentsBuilder
-                .path("/analisis-financiero/{id}")
-                .buildAndExpand(resultado.id())
-                .toUri();
-        return ResponseEntity.created(uri).body(resultado);
+        return ResponseEntity.ok(resultado);
     }
 
-    //Obtiene los datos del analisis financiero correspondiente al id recibido
+    // Obtiene los datos del análisis financiero correspondiente al id recibido
     @GetMapping("/{id}")
-    public ResponseEntity<FinancialResponse> detallar(@PathVariable Long id){
+    public ResponseEntity<FinancialResponse> detallar(@PathVariable Long id) {
         return ResponseEntity.ok(financialService.buscarPorId(id));
     }
 }
