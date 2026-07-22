@@ -1,6 +1,6 @@
 package com.equipo26.financeai.exception;
 
-import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j; // 1. Agregamos la importación de Lombok
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     // 400 - Errores de validación (@Valid falló en FinancialRequest)
@@ -59,6 +60,9 @@ public class GlobalExceptionHandler {
     // 500 - Cualquier otro error no controlado
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericError(Exception ex) {
+
+        log.error("Error inesperado", ex);
+
         var error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Ocurrió un error inesperado. Intenta más tarde.",
