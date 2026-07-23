@@ -19,27 +19,27 @@ public class FinancialServiceImpl implements FinancialService {
     public FinancialResponse analizar(FinancialRequest datos) {
         FinancialResponse respuesta = new FinancialResponse();
 
-        int nivelEndeudamiento = (datos != null && datos.getNivel_endeudamiento() != null)
-                ? datos.getNivel_endeudamiento()
+        int nivelEndeudamiento = (datos != null && datos.getNivelEndeudamiento() != null)
+                ? datos.getNivelEndeudamiento()
                 : 0;
 
         List<String> recomendaciones = new ArrayList<>();
 
         // Asignar perfil financiero y recomendaciones según endeudamiento
         if (nivelEndeudamiento > UMBRAL_ENDEUDAMIENTO_CRITICO) {
-            respuesta.setPerfil_financiero("En riesgo");
+            respuesta.setPerfilFinanciero("En riesgo");
             recomendaciones.add("🚨 Tu nivel de endeudamiento es crítico. Es recomendable reducir gastos y buscar asesoría financiera.");
         } else if (nivelEndeudamiento > UMBRAL_ENDEUDAMIENTO_ALTO) {
-            respuesta.setPerfil_financiero("En observación");
+            respuesta.setPerfilFinanciero("En observación");
             recomendaciones.add("⚠️ Tu nivel de endeudamiento (" + nivelEndeudamiento + "%) es elevado. Prioriza liquidar deudas de mayor interés.");
         } else {
-            respuesta.setPerfil_financiero("Saludable");
+            respuesta.setPerfilFinanciero("Saludable");
             recomendaciones.add("✅ Tu nivel de endeudamiento está dentro de un rango saludable.");
         }
 
         // Recomendación de ahorro basada en ingresos
-        if (datos != null && datos.getIngreso_mensual() != null && datos.getIngreso_mensual() > 0) {
-            double ahorroSugerido = datos.getIngreso_mensual() * PORCENTAJE_AHORRO_SUGERIDO;
+        if (datos != null && datos.getIngresoMensual() != null && datos.getIngresoMensual() > 0) {
+            double ahorroSugerido = datos.getIngresoMensual() * PORCENTAJE_AHORRO_SUGERIDO;
             recomendaciones.add("💡 Te recomendamos destinar al menos el 20% de tu ingreso mensual ($" + ahorroSugerido + ") a tu fondo de ahorro.");
         }
 
