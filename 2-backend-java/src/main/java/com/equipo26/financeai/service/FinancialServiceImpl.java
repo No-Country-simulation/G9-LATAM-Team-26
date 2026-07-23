@@ -10,6 +10,8 @@ import java.util.List;
 @Service
 public class FinancialServiceImpl implements FinancialService {
 
+    // Constante para el nivel de endeudamiento en cuestion
+    private static final int UMBRAL_ENDEUDAMIENTO_CRITICO = 70;
     private static final int UMBRAL_ENDEUDAMIENTO_ALTO = 40;
     private static final double PORCENTAJE_AHORRO_SUGERIDO = 0.20;
 
@@ -24,9 +26,11 @@ public class FinancialServiceImpl implements FinancialService {
         List<String> recomendaciones = new ArrayList<>();
 
         // Asignar perfil financiero y recomendaciones según endeudamiento
-
-        if (nivelEndeudamiento > UMBRAL_ENDEUDAMIENTO_ALTO) {
-            respuesta.setPerfil_financiero("En observacion");
+        if (nivelEndeudamiento > UMBRAL_ENDEUDAMIENTO_CRITICO) {
+            respuesta.setPerfil_financiero("En riesgo");
+            recomendaciones.add("🚨 Tu nivel de endeudamiento es crítico. Es recomendable reducir gastos y buscar asesoría financiera.");
+        } else if (nivelEndeudamiento > UMBRAL_ENDEUDAMIENTO_ALTO) {
+            respuesta.setPerfil_financiero("En observación");
             recomendaciones.add("⚠️ Tu nivel de endeudamiento (" + nivelEndeudamiento + "%) es elevado. Prioriza liquidar deudas de mayor interés.");
         } else {
             respuesta.setPerfil_financiero("Saludable");
