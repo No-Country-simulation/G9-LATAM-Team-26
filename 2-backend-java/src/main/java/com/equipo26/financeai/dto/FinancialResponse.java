@@ -1,5 +1,6 @@
 package com.equipo26.financeai.dto;
 
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Data;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.Map;
  * Contiene el diagnóstico de la IA y las recomendaciones del Backend.
  */
 @Data
+@JsonPropertyOrder({ "perfil_financiero", "probabilidad", "resumen_gastos", "recomendaciones" })
 public class FinancialResponse {
 
     // Diagnóstico de la IA (Ej: "En observacion", "Saludable")
