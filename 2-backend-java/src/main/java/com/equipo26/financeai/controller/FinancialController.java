@@ -4,7 +4,8 @@ import com.equipo26.financeai.service.FinancialService;
 import com.equipo26.financeai.dto.FinancialRequest;
 import com.equipo26.financeai.dto.FinancialResponse;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,10 +16,10 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/analisis-financiero")
+@RequiredArgsConstructor
 public class FinancialController {
 
-    @Autowired
-    private FinancialService financialService;
+    private final FinancialService financialService;
 
     // Recibe la información financiera del usuario y retorna el diagnóstico
     @PostMapping

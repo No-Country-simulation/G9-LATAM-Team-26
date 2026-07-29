@@ -47,8 +47,7 @@ public class FinancialServiceImpl implements FinancialService {
                 .collect(Collectors.groupingBy(
                         TransaccionClasificadaDTO::getCategoria,
                         TreeMap::new,
-                        Collectors.summingDouble(t -> t.getValor().doubleValue())
-                ));
+                        Collectors.summingDouble(t -> t.getValor().doubleValue())));
     }
 
     /**
