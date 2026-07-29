@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
@@ -55,7 +56,8 @@ public class GlobalExceptionHandler {
         }
     }
 
-    public record ErrorResponse(int status, String mensaje, LocalDateTime fecha) {}
+    public record ErrorResponse(int status, String mensaje, LocalDateTime fecha) {
+    }
 
     // 500 - Cualquier otro error no controlado
     @ExceptionHandler(Exception.class)
@@ -66,8 +68,15 @@ public class GlobalExceptionHandler {
         var error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Ocurrió un error inesperado. Intenta más tarde.",
-                LocalDateTime.now()
-        );
+                LocalDateTime.now());
         return ResponseEntity.internalServerError().body(error);
+    }
+
+    @ExceptionHandler(MlServiceException.class)
+    public ResponseEntity<Map<String, String>> handleMlService(MlServiceException ex) {
+        log.error("Error de integración con ML: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", ex.getMessage()));
     }
 }
