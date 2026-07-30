@@ -1,3 +1,7 @@
+import logging
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 from fastapi import FastAPI
 from app.schemas import AnalisisFinancieroRequest, AnalisisFinancieroResponse
 from app.classifier import analizar
@@ -19,11 +23,8 @@ def health_check():
 def analisis_financiero(datos: AnalisisFinancieroRequest):
     """
     Recibe los datos financieros del usuario y sus transacciones,
-    devuelve el perfil financiero y las transacciones clasificadas.
-
-    Hoy: lógica por reglas (dummy classifier).
-    Mañana: modelo.pkl real cargado en classifier.py.
-    La forma de este endpoint no cambia en ninguno de los dos casos.
+    devuelve el perfil financiero (RandomForest) y las transacciones
+    clasificadas (LogisticRegression + TF-IDF)..
     """
     resultado = analizar(datos)
     return AnalisisFinancieroResponse(**resultado)

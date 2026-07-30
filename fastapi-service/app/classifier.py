@@ -1,20 +1,19 @@
 """
-classifier.py — Motor de inferencia real (reemplaza al clasificador dummy).
+Motor de inferencia del sistema.
 
-IMPORTANTE PARA EL EQUIPO:
-- La firma pública `analizar(datos) -> dict` NO cambió respecto al dummy.
-  main.py y schemas.py siguen intactos, y Java no se entera del cambio.
-- Todo lo que cambió vive acá adentro: ahora carga 3 modelos entrenados
-  por el equipo de Data Science en vez de usar reglas.
+Carga los modelos entrenados para:
+- Clasificar transacciones por descripción.
+- Predecir el perfil financiero del usuario.
+
+La función pública `analizar()` mantiene la misma interfaz utilizada por el resto
+de la aplicación.
 
 Modelos (en la carpeta models/):
 - modelo_clasificador_transacciones.joblib + vectorizer_transacciones.joblib
-    -> clasifican cada transacción por su descripción (TF-IDF + LogisticRegression)
+    clasifican cada transacción por su descripción (TF-IDF + LogisticRegression)
 - modelo_perfil_financiero.joblib
-    -> predice el perfil (RandomForest) a partir de un vector de 37 features
+    predice el perfil (RandomForest) a partir de un vector de 37 features
 """
-
-import unicodedata
 from pathlib import Path
 
 import joblib
@@ -22,20 +21,22 @@ import pandas as pd
 
 from app.schemas import AnalisisFinancieroRequest, TransaccionClasificada
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
-# Carga de modelos (una sola vez, al importar el módulo)
+# Carga de modelos
 # ---------------------------------------------------------------------------
 _MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
 modelo_perfil = joblib.load(_MODELS_DIR / "modelo_perfil_financiero.joblib")
-modelo_transacciones = joblib.load(
-    _MODELS_DIR / "modelo_clasificador_transacciones.joblib"
-)
+modelo_transacciones = joblib.load(_MODELS_DIR / "modelo_clasificador_transacciones.joblib")
 vectorizer_transacciones = joblib.load(_MODELS_DIR / "vectorizer_transacciones.joblib")
 
-# El propio modelo recuerda el orden EXACTO de sus 37 features. Lo usamos como
-# fuente de verdad para reindexar: si falta o sobra una columna, sklearn tira
-# error explícito en vez de predecir en silencio con datos mal alineados.
+logger.info("Modelos cargados: perfil=%s, clasificador=%s", type(modelo_perfil).__name__, type(modelo_transacciones).__name__)
+
+# Columnas esperadas por el modelo de perfil.
 COLUMNAS_MODELO_PERFIL = list(modelo_perfil.feature_names_in_)
 
 # ---------------------------------------------------------------------------
@@ -49,111 +50,101 @@ GASTOS_HORMIGA_KEYWORDS = {
 ORDEN_AHORRO = {"Nula": 0, "Baja": 1, "Media": 2, "Alta": 3}
 
 
-def _quitar_acentos(texto: str) -> str:
-    return "".join(
-        c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c)
-    )
-
-
-def _slug(texto: str) -> str:
-    """'Alimentación' -> 'alimentacion'. SOLO para llaves del JSON de salida."""
-    return _quitar_acentos(texto).lower().replace(" ", "_")
-
-
 # ---------------------------------------------------------------------------
 # Paso 1: clasificar transacciones por descripción
 # ---------------------------------------------------------------------------
 def _procesar_transacciones(transacciones) -> pd.DataFrame:
     """
-    Recibe la lista de transacciones del request y devuelve un DataFrame
-    con la categoría predicha y la marca de gasto hormiga.
+    Clasifica las transacciones y marca los posibles gastos hormiga.
     """
-    df = pd.DataFrame(
-        [{"descripcion": t.descripcion, "valor": t.valor} for t in transacciones]
-    )
+    transacciones_df = pd.DataFrame( [{"descripcion": t.descripcion, "valor": t.valor} for t in transacciones])
 
-    df["categoria"] = modelo_transacciones.predict(
-        vectorizer_transacciones.transform(df["descripcion"])
+    transacciones_df["categoria"] = modelo_transacciones.predict(
+        vectorizer_transacciones.transform(transacciones_df["descripcion"])
     )
-    df["es_gasto_hormiga"] = (
-        df["descripcion"]
+    transacciones_df["es_gasto_hormiga"] = (
+        transacciones_df["descripcion"]
         .str.lower()
         .apply(lambda desc: any(k in desc for k in GASTOS_HORMIGA_KEYWORDS))
     )
-    return df
+
+    logger.info("Transacciones clasificadas: %s", transacciones_df[["descripcion", "categoria"]].to_dict("records"))
+    return transacciones_df
 
 
 # ---------------------------------------------------------------------------
-# Paso 2: construir el vector de 37 features que espera el RandomForest
+# Paso 2: Construcción del vector de entrada para el modelo de perfil
 # ---------------------------------------------------------------------------
-def _construir_features_usuario(
-    datos: AnalisisFinancieroRequest, df_tx: pd.DataFrame) -> pd.DataFrame:
-    gasto_total = df_tx["valor"].sum()
-    pct_por_categoria = df_tx.groupby("categoria")["valor"].sum() / gasto_total
+def _construir_features_usuario(datos: AnalisisFinancieroRequest, trans_df: pd.DataFrame) -> pd.DataFrame:
+    monto_total_gastado = trans_df["valor"].sum()
+    porcentaje_gasto_por_categoria = (trans_df.groupby("categoria")["valor"].sum() / monto_total_gastado)
 
-    features = {
+    metricas_usuario = {
         "ingreso_mensual": datos.ingreso_mensual,
         "nivel_endeudamiento": datos.nivel_endeudamiento,
-        "ticket_promedio": df_tx["valor"].mean(),
-        "std_monto": df_tx["valor"].std() if len(df_tx) > 1 else 0,
-        "frecuencia_transacciones": len(df_tx),
-        "num_categorias_distintas": df_tx["categoria"].nunique(),
-        "pct_gasto_hormiga": df_tx["es_gasto_hormiga"].mean(),
+        "ticket_promedio": trans_df["valor"].mean(),
+        "std_monto": trans_df["valor"].std() if len(trans_df) > 1 else 0,
+        "frecuencia_transacciones": len(trans_df),
+        "num_categorias_distintas": trans_df["categoria"].nunique(),
+        "pct_gasto_hormiga": trans_df["es_gasto_hormiga"].mean(),
         "frecuencia_ahorro_ord": ORDEN_AHORRO.get(datos.frecuencia_ahorro, 0),
     }
 
-    categoria_riesgo = (df_tx["categoria"] == "Deudas") | df_tx["es_gasto_hormiga"]
-    features["pct_gasto_riesgo"] = (
-        df_tx.loc[categoria_riesgo, "valor"].sum() / gasto_total
-    )
+    categoria_riesgo = (trans_df["categoria"] == "Deudas") | trans_df["es_gasto_hormiga"]
+    metricas_usuario["pct_gasto_riesgo"] = (trans_df.loc[categoria_riesgo, "valor"].sum() / monto_total_gastado)
 
-    categoria_top = df_tx.loc[df_tx["valor"].idxmax(), "categoria"]
+    categoria_top = trans_df.loc[trans_df["valor"].idxmax(), "categoria"]
 
-    # Arrancamos con todas las columnas en 0 y rellenamos las que aplican.
-    fila = {col: 0 for col in COLUMNAS_MODELO_PERFIL}
+    # Inicializa todas las variables en cero.
+    vector_features = {nombre_columna: 0 for nombre_columna in COLUMNAS_MODELO_PERFIL}
 
-    for clave, valor in features.items():
-        if clave in fila:
-            fila[clave] = valor
+    for nombre_feature, valor_feature in metricas_usuario.items():
+        if nombre_feature in vector_features:
+            vector_features[nombre_feature] = valor_feature
 
-    # OJO: las columnas pct_gasto_<categoria> del modelo conservan el acento
-    # (pct_gasto_alimentación). Por eso acá va .lower() pero NO _slug():
-    # _slug quitaría el acento y la columna no matchearía -> feature en 0.
-    for categoria, pct in pct_por_categoria.items():
+    # Las columnas del modelo conservan los acentos (pct_gasto_alimentación),
+    # por eso se usa .lower() pero no se quitan los acentos: deben coincidir
+    # exactamente con los nombres definidos durante el entrenamiento.
+    for categoria, porcentaje_gasto in porcentaje_gasto_por_categoria.items():
         col = f"pct_gasto_{categoria.lower()}"
-        if col in fila:
-            fila[col] = pct
+        if col in vector_features:
+            vector_features[col] = porcentaje_gasto
 
-    # top_<Categoria>: nombre literal, capitalizado y con acento tal cual.
-    col_top = f"top_{categoria_top}"
-    if col_top in fila:
-        fila[col_top] = 1
+    # Marca la categoría con mayor gasto.
+    columna_categoria_principal = f"top_{categoria_top}"
+    if columna_categoria_principal in vector_features:
+        vector_features[columna_categoria_principal] = 1
 
-    # Reindexamos por el orden exacto del modelo (blindaje de orden).
-    return pd.DataFrame([fila])[COLUMNAS_MODELO_PERFIL]
+    # Reordena las columnas según el orden esperado por el modelo.
+    return pd.DataFrame([vector_features])[COLUMNAS_MODELO_PERFIL]
 
 
 # ---------------------------------------------------------------------------
-# Función pública — la firma NO cambia. main.py la llama igual que al dummy.
+# Punto de entrada del módulo.
 # ---------------------------------------------------------------------------
 def analizar(datos: AnalisisFinancieroRequest) -> dict:
-    df_tx = _procesar_transacciones(datos.transacciones)
+    transacciones_clasificadas_df = _procesar_transacciones(datos.transacciones)
 
-    X_usuario = _construir_features_usuario(datos, df_tx)
-    perfil = modelo_perfil.predict(X_usuario)[0]
-    probabilidad = float(max(modelo_perfil.predict_proba(X_usuario)[0]))
+    vector_usuario = _construir_features_usuario(datos, transacciones_clasificadas_df)
+    perfil_predicho = modelo_perfil.predict(vector_usuario)[0]
+    confianza_prediccion = float(max(modelo_perfil.predict_proba(vector_usuario)[0]))
+
+    logger.info(
+        "Análisis completo -> perfil=%s, confianza=%.2f, transacciones=%d",
+        perfil_predicho, confianza_prediccion, len(transacciones_clasificadas_df)
+    )
 
     transacciones_clasificadas = [
         TransaccionClasificada(
-            descripcion=row["descripcion"],
-            valor=row["valor"],
-            categoria=row["categoria"],
+            descripcion=transaccion["descripcion"],
+            valor=transaccion["valor"],
+            categoria=transaccion["categoria"],
         )
-        for _, row in df_tx.iterrows()
+        for _, transaccion in transacciones_clasificadas_df.iterrows()
     ]
 
     return {
-        "perfil_financiero": perfil,
-        "probabilidad": round(probabilidad, 2),
+        "perfil_financiero": perfil_predicho,
+        "probabilidad": round(confianza_prediccion, 2),
         "transacciones_clasificadas": transacciones_clasificadas,
     }
