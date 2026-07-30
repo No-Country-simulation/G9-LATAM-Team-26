@@ -16,10 +16,12 @@ Modelos (en la carpeta models/):
 """
 from pathlib import Path
 
-import joblib
+import joblib # type: ignore
 import pandas as pd
 
 from app.schemas import AnalisisFinancieroRequest, TransaccionClasificada
+from app.schemas import Transaccion
+from typing import List, Dict, Any
 
 import logging
 
@@ -31,8 +33,8 @@ logger = logging.getLogger(__name__)
 _MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
 modelo_perfil = joblib.load(_MODELS_DIR / "modelo_perfil_financiero.joblib")
-modelo_transacciones = joblib.load(_MODELS_DIR / "modelo_clasificador_transacciones.joblib")
-vectorizer_transacciones = joblib.load(_MODELS_DIR / "vectorizer_transacciones.joblib")
+modelo_transacciones= joblib.load(_MODELS_DIR / "modelo_clasificador_transacciones.joblib")
+vectorizer_transacciones= joblib.load(_MODELS_DIR / "vectorizer_transacciones.joblib")
 
 logger.info("Modelos cargados: perfil=%s, clasificador=%s", type(modelo_perfil).__name__, type(modelo_transacciones).__name__)
 
@@ -53,7 +55,7 @@ ORDEN_AHORRO = {"Nula": 0, "Baja": 1, "Media": 2, "Alta": 3}
 # ---------------------------------------------------------------------------
 # Paso 1: clasificar transacciones por descripción
 # ---------------------------------------------------------------------------
-def _procesar_transacciones(transacciones) -> pd.DataFrame:
+def _procesar_transacciones(transacciones: List[Transaccion]) -> pd.DataFrame:
     """
     Clasifica las transacciones y marca los posibles gastos hormiga.
     """
@@ -79,7 +81,7 @@ def _construir_features_usuario(datos: AnalisisFinancieroRequest, trans_df: pd.D
     monto_total_gastado = trans_df["valor"].sum()
     porcentaje_gasto_por_categoria = (trans_df.groupby("categoria")["valor"].sum() / monto_total_gastado)
 
-    metricas_usuario = {
+    metricas_usuario: Dict[str, Any] = {
         "ingreso_mensual": datos.ingreso_mensual,
         "nivel_endeudamiento": datos.nivel_endeudamiento,
         "ticket_promedio": trans_df["valor"].mean(),
@@ -122,7 +124,7 @@ def _construir_features_usuario(datos: AnalisisFinancieroRequest, trans_df: pd.D
 # ---------------------------------------------------------------------------
 # Punto de entrada del módulo.
 # ---------------------------------------------------------------------------
-def analizar(datos: AnalisisFinancieroRequest) -> dict:
+def analizar(datos: AnalisisFinancieroRequest) -> Dict[str, Any]:
     transacciones_clasificadas_df = _procesar_transacciones(datos.transacciones)
 
     vector_usuario = _construir_features_usuario(datos, transacciones_clasificadas_df)
