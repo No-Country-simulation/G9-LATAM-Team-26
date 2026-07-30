@@ -1,151 +1,159 @@
+"""
+classifier.py — Motor de inferencia real (reemplaza al clasificador dummy).
+
+IMPORTANTE PARA EL EQUIPO:
+- La firma pública `analizar(datos) -> dict` NO cambió respecto al dummy.
+  main.py y schemas.py siguen intactos, y Java no se entera del cambio.
+- Todo lo que cambió vive acá adentro: ahora carga 3 modelos entrenados
+  por el equipo de Data Science en vez de usar reglas.
+
+Modelos (en la carpeta models/):
+- modelo_clasificador_transacciones.joblib + vectorizer_transacciones.joblib
+    -> clasifican cada transacción por su descripción (TF-IDF + LogisticRegression)
+- modelo_perfil_financiero.joblib
+    -> predice el perfil (RandomForest) a partir de un vector de 37 features
+"""
+
+import unicodedata
+from pathlib import Path
+
+import joblib
+import pandas as pd
+
 from app.schemas import AnalisisFinancieroRequest, TransaccionClasificada
 
-# ---------------------------------------------------------------
-# ESTO ES LO "TONTO". El día que el equipo de datos entregue el
-# modelo.pkl, se reemplaza el CONTENIDO de estas dos funciones.
-# Las firmas quedan igual, así que main.py no se entera de nada.
-# ---------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Carga de modelos (una sola vez, al importar el módulo)
+# ---------------------------------------------------------------------------
+_MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
-CATALOGO = {
-    "Alimentación": [
-        "Walmart", "Soriana", "Chedraui", "Bodega Aurrera", "Costco", "Sam's Club",
-        "La Comer", "City Market", "Subway", "Domino's Pizza", "Little Caesars",
-        "McDonald's", "Burger King", "Toks", "Vips", "El Globo", "Starbucks",
-        "Italianni's", "Sushi Roll", "Chili's", "Mercado", "Despensa"
-    ],
-    "Transporte": [
-        "Uber", "DiDi", "Cabify", "Gasolina Pemex", "Gasolina Shell", "Gasolina BP",
-        "Caseta CAPUFE", "ADO", "ETN", "Viva Aerobus", "Aeroméxico",
-        "Metro CDMX", "Metrobús"
-    ],
-    "Salud": [
-        "Farmacias Guadalajara", "Farmacias del Ahorro", "Farmacia San Pablo",
-        "Hospital Ángeles", "Hospital ABC", "Laboratorio Chopo", "Salud Digna",
-        "Dentista", "Ópticas Devlyn", "Ginecólogo"
-    ],
-    "Vivienda": [
-        "Renta", "Hipoteca", "Home Depot", "IKEA", "Mantenimiento",
-        "Ferretería", "Pinturas Comex", "Construrama"
-    ],
-    "Educación": [
-        "Coursera", "Platzi", "UNAM", "IPN", "Tec de Monterrey",
-        "Compra Libros", "Amazon Libros", "Útiles", "Colegiatura"
-    ],
-    "Servicios": [
-        "CFE", "Telmex", "Totalplay", "Izzi", "Megacable", "Gas Natural",
-        "Servicio de Agua", "Telcel", "AT&T"
-    ],
-    "Entretenimiento": [
-        "Cinépolis", "Cinemex", "Steam", "PlayStation Store", "Xbox Store",
-        "Nintendo eShop", "Concierto", "Six Flags", "Museo"
-    ],
-    "Suscripciones": [
-        "Netflix", "Spotify", "Disney+", "Amazon Prime", "Max",
-        "YouTube Premium", "Google One", "Dropbox", "Apple Music", "Microsoft 365"
-    ],
-    "Inversión": [
-        "CETES", "GBM", "Nu Ahorro", "AFORE", "Fondo Indexado",
-        "ETF Vanguard", "Compra Acciones"
-    ],
-    "Deudas": [
-        "Pago TDC BBVA", "Pago TDC Banamex", "Pago TDC Santander",
-        "Pago Préstamo Personal", "Liverpool Crédito", "Pago Nómina Kueski"
-    ],
-    "Seguros": [
-        "GNP Seguros", "AXA Seguros", "Seguros Monterrey", "Seguro Auto Qualitas"
-    ],
-    "Ropa": [
-        "Liverpool", "Zara", "H&M", "C&A", "Palacio de Hierro", "Shein"
-    ],
-    "Mascotas": [
-        "Petco", "Veterinario", "PatasPet"
-    ],
-    "Otros": [
-        "Transferencia SPEI", "Compra Desconocida", "Cargo Varios", "OXXO", "7-Eleven"
-    ],
+modelo_perfil = joblib.load(_MODELS_DIR / "modelo_perfil_financiero.joblib")
+modelo_transacciones = joblib.load(
+    _MODELS_DIR / "modelo_clasificador_transacciones.joblib"
+)
+vectorizer_transacciones = joblib.load(_MODELS_DIR / "vectorizer_transacciones.joblib")
+
+# El propio modelo recuerda el orden EXACTO de sus 37 features. Lo usamos como
+# fuente de verdad para reindexar: si falta o sobra una columna, sklearn tira
+# error explícito en vez de predecir en silencio con datos mal alineados.
+COLUMNAS_MODELO_PERFIL = list(modelo_perfil.feature_names_in_)
+
+# ---------------------------------------------------------------------------
+# Constantes y helpers (copiados fielmente del notebook de Data Science)
+# ---------------------------------------------------------------------------
+GASTOS_HORMIGA_KEYWORDS = {
+    "starbucks", "oxxo", "7-eleven", "café punta del cielo", "coca-cola",
+    "sabritas", "pan dulce", "chocolate", "galletas", "helado",
 }
 
-# Aplanamos el catálogo a un mapa comercio -> categoría, todo en minúsculas
-# para comparar. Se calcula una sola vez al importar el módulo.
-_MAPA_COMERCIOS = {
-    comercio.lower(): categoria
-    for categoria, comercios in CATALOGO.items()
-    for comercio in comercios
-}
-
-CATEGORIAS = list(CATALOGO.keys())
+ORDEN_AHORRO = {"Nula": 0, "Baja": 1, "Media": 2, "Alta": 3}
 
 
-def clasificar_transaccion(descripcion: str) -> str:
+def _quitar_acentos(texto: str) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c)
+    )
+
+
+def _slug(texto: str) -> str:
+    """'Alimentación' -> 'alimentacion'. SOLO para llaves del JSON de salida."""
+    return _quitar_acentos(texto).lower().replace(" ", "_")
+
+
+# ---------------------------------------------------------------------------
+# Paso 1: clasificar transacciones por descripción
+# ---------------------------------------------------------------------------
+def _procesar_transacciones(transacciones) -> pd.DataFrame:
     """
-    Clasifica UNA transacción buscando coincidencia de comercio
-    dentro de la descripción. Mañana esto se reemplaza por:
-    modelo.predict([descripcion])
+    Recibe la lista de transacciones del request y devuelve un DataFrame
+    con la categoría predicha y la marca de gasto hormiga.
     """
-    texto = descripcion.lower()
+    df = pd.DataFrame(
+        [{"descripcion": t.descripcion, "valor": t.valor} for t in transacciones]
+    )
 
-    for comercio, categoria in _MAPA_COMERCIOS.items():
-        if comercio in texto:
-            return categoria
-
-    return "Otros"  # fallback oficial del catálogo
-
-
-def predecir_perfil(datos: AnalisisFinancieroRequest) -> tuple[str, float]:
-    """
-    Replica la regla de negocio real (calcular_perfil_financiero) del
-    notebook de Data Science, para que el clasificador dummy razone
-    igual que el modelo que va a llegar.
-    Mañana esto se reemplaza por: modelo.predict_proba(features)
-    """
-    gasto_total = sum(t.valor for t in datos.transacciones)
-    ratio_gasto = gasto_total / datos.ingreso_mensual if datos.ingreso_mensual else 0
-
-    puntos_riesgo = 0
-
-    if datos.nivel_endeudamiento > 35:
-        puntos_riesgo += 2
-    elif datos.nivel_endeudamiento > 18:
-        puntos_riesgo += 1
-
-    if ratio_gasto > 0.65:
-        puntos_riesgo += 2
-    elif ratio_gasto > 0.45:
-        puntos_riesgo += 1
-
-    ahorro = datos.frecuencia_ahorro
-    if ahorro == "Nula":
-        puntos_riesgo += 2
-    elif ahorro == "Baja":
-        puntos_riesgo += 1
-    elif ahorro == "Alta":
-        puntos_riesgo -= 1
-
-    if puntos_riesgo >= 4:
-        return "En riesgo", 0.85
-    elif puntos_riesgo >= 2:
-        return "En observación", 0.75
-    else:
-        return "Saludable", 0.90
+    df["categoria"] = modelo_transacciones.predict(
+        vectorizer_transacciones.transform(df["descripcion"])
+    )
+    df["es_gasto_hormiga"] = (
+        df["descripcion"]
+        .str.lower()
+        .apply(lambda desc: any(k in desc for k in GASTOS_HORMIGA_KEYWORDS))
+    )
+    return df
 
 
+# ---------------------------------------------------------------------------
+# Paso 2: construir el vector de 37 features que espera el RandomForest
+# ---------------------------------------------------------------------------
+def _construir_features_usuario(
+    datos: AnalisisFinancieroRequest, df_tx: pd.DataFrame) -> pd.DataFrame:
+    gasto_total = df_tx["valor"].sum()
+    pct_por_categoria = df_tx.groupby("categoria")["valor"].sum() / gasto_total
+
+    features = {
+        "ingreso_mensual": datos.ingreso_mensual,
+        "nivel_endeudamiento": datos.nivel_endeudamiento,
+        "ticket_promedio": df_tx["valor"].mean(),
+        "std_monto": df_tx["valor"].std() if len(df_tx) > 1 else 0,
+        "frecuencia_transacciones": len(df_tx),
+        "num_categorias_distintas": df_tx["categoria"].nunique(),
+        "pct_gasto_hormiga": df_tx["es_gasto_hormiga"].mean(),
+        "frecuencia_ahorro_ord": ORDEN_AHORRO.get(datos.frecuencia_ahorro, 0),
+    }
+
+    categoria_riesgo = (df_tx["categoria"] == "Deudas") | df_tx["es_gasto_hormiga"]
+    features["pct_gasto_riesgo"] = (
+        df_tx.loc[categoria_riesgo, "valor"].sum() / gasto_total
+    )
+
+    categoria_top = df_tx.loc[df_tx["valor"].idxmax(), "categoria"]
+
+    # Arrancamos con todas las columnas en 0 y rellenamos las que aplican.
+    fila = {col: 0 for col in COLUMNAS_MODELO_PERFIL}
+
+    for clave, valor in features.items():
+        if clave in fila:
+            fila[clave] = valor
+
+    # OJO: las columnas pct_gasto_<categoria> del modelo conservan el acento
+    # (pct_gasto_alimentación). Por eso acá va .lower() pero NO _slug():
+    # _slug quitaría el acento y la columna no matchearía -> feature en 0.
+    for categoria, pct in pct_por_categoria.items():
+        col = f"pct_gasto_{categoria.lower()}"
+        if col in fila:
+            fila[col] = pct
+
+    # top_<Categoria>: nombre literal, capitalizado y con acento tal cual.
+    col_top = f"top_{categoria_top}"
+    if col_top in fila:
+        fila[col_top] = 1
+
+    # Reindexamos por el orden exacto del modelo (blindaje de orden).
+    return pd.DataFrame([fila])[COLUMNAS_MODELO_PERFIL]
+
+
+# ---------------------------------------------------------------------------
+# Función pública — la firma NO cambia. main.py la llama igual que al dummy.
+# ---------------------------------------------------------------------------
 def analizar(datos: AnalisisFinancieroRequest) -> dict:
-    """
-    Función pública que usa main.py. Esta firma NO cambia nunca.
-    """
+    df_tx = _procesar_transacciones(datos.transacciones)
+
+    X_usuario = _construir_features_usuario(datos, df_tx)
+    perfil = modelo_perfil.predict(X_usuario)[0]
+    probabilidad = float(max(modelo_perfil.predict_proba(X_usuario)[0]))
+
     transacciones_clasificadas = [
         TransaccionClasificada(
-            descripcion=t.descripcion,
-            valor=t.valor,
-            categoria=clasificar_transaccion(t.descripcion),
+            descripcion=row["descripcion"],
+            valor=row["valor"],
+            categoria=row["categoria"],
         )
-        for t in datos.transacciones
+        for _, row in df_tx.iterrows()
     ]
-
-    perfil, probabilidad = predecir_perfil(datos)
 
     return {
         "perfil_financiero": perfil,
-        "probabilidad": probabilidad,
+        "probabilidad": round(probabilidad, 2),
         "transacciones_clasificadas": transacciones_clasificadas,
     }
