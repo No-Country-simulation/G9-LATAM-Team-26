@@ -26,6 +26,9 @@ public class FinancialServiceImpl implements FinancialService {
         // El diagnóstico ya NO se calcula acá: lo produce el microservicio ML
         MlAnalysisResponse ml = mlServiceClient.analizar(datos);
 
+        log.info("ML devolvió: perfil={}, {} transacciones clasificadas",
+                ml.getPerfilFinanciero(), ml.getTransaccionesClasificadas().size());
+
         FinancialResponse respuesta = new FinancialResponse();
         respuesta.setPerfilFinanciero(ml.getPerfilFinanciero());
         respuesta.setProbabilidad(ml.getProbabilidad());
@@ -59,11 +62,11 @@ public class FinancialServiceImpl implements FinancialService {
 
         switch (perfil) {
             case "En riesgo" -> recomendaciones.add(
-                    "🚨 Tu perfil financiero es de riesgo. Es recomendable reducir gastos y buscar asesoría financiera.");
+                    "Tu perfil financiero es de riesgo. Es recomendable reducir gastos y buscar asesoría financiera.");
             case "En observación" -> recomendaciones.add(
-                    "⚠️ Tu situación requiere atención. Prioriza liquidar deudas de mayor interés y controlar gastos.");
+                    "Tu situación requiere atención. Prioriza liquidar deudas de mayor interés y controlar gastos.");
             case "Saludable" -> recomendaciones.add(
-                    "✅ Tu perfil financiero es saludable. Mantén tus hábitos actuales.");
+                    "Tu perfil financiero es saludable. Mantén tus hábitos actuales.");
             default -> {
                 log.warn("Perfil financiero no reconocido recibido del ML: {}", perfil);
                 recomendaciones.add("Revisa tus finanzas con detalle para mantener un balance saludable.");
@@ -73,7 +76,7 @@ public class FinancialServiceImpl implements FinancialService {
         if (datos.getIngresoMensual() != null && datos.getIngresoMensual() > 0) {
             double ahorroSugerido = datos.getIngresoMensual() * PORCENTAJE_AHORRO_SUGERIDO;
             recomendaciones.add(String.format(
-                    "💡 Te recomendamos destinar al menos el 20%% de tu ingreso mensual ($%.2f) a tu fondo de ahorro.",
+                    "Te recomendamos destinar al menos el 20%% de tu ingreso mensual ($%.2f) a tu fondo de ahorro.",
                     ahorroSugerido));
         }
 
