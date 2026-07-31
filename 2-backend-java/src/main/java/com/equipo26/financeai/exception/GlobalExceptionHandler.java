@@ -16,6 +16,8 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     // 400 - Errores de validación (@Valid falló en FinancialRequest)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<List<ValidationErrorResponse>> handleValidationError(MethodArgumentNotValidException ex) {
