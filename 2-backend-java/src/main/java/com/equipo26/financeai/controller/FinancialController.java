@@ -4,41 +4,44 @@ import com.equipo26.financeai.service.FinancialService;
 import com.equipo26.financeai.dto.FinancialRequest;
 import com.equipo26.financeai.dto.FinancialResponse;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponentsBuilder;
 
 /*
     Controlador REST encargado de recibir las solicitudes HTTP
-    relacionadas con el analisis financiero de los usuarios
+    relacionadas con el análisis financiero de los usuarios
 */
-
+@Slf4j
 @RestController
-@RequestMapping("/analisis-financiero")//Ruta de la solicitudes del controlador
+@RequestMapping("/analisis-financiero")
+@RequiredArgsConstructor
 public class FinancialController {
 
-    @Autowired
-    private FinancialService financialService;
+    private final FinancialService financialService;
 
-    //Manda información financiera del usuario
+    // Recibe la información financiera del usuario y retorna el diagnóstico
     @PostMapping
-    public ResponseEntity<FinancialResponse> registrarFinanzas
-        //@Valid ejecuta las validaciones definidas en la clase FinancialRequest
-            (@RequestBody @Valid FinancialRequest datos, UriComponentsBuilder uriComponentsBuilder) {
-        //Calcula análisis financiero y devuelve DTO con el resultado
+    public ResponseEntity<FinancialResponse> registrarFinanzas(
+            @RequestBody @Valid FinancialRequest datos) {
+
+        log.info("Request recibido: ingreso={}, endeudamiento={}%, ahorro={}, transacciones={}",
+                datos.getIngresoMensual(), datos.getNivelEndeudamiento(),
+                datos.getFrecuenciaAhorro(), datos.getTransacciones().size());
+
         FinancialResponse resultado = financialService.analizar(datos);
-        //Construye la URI del recurso creado para incluirla en la respuesta HTTP
-        var uri = uriComponentsBuilder
-                .path("/analisis-financiero/{id}")
-                .buildAndExpand(resultado.id())
-                .toUri();
-        return ResponseEntity.created(uri).body(resultado);
+
+        log.info("Respuesta enviada: perfil={}, probabilidad={}",
+                resultado.getPerfilFinanciero(), resultado.getProbabilidad());
+
+        return ResponseEntity.ok(resultado);
     }
 
-    //Obtiene los datos del analisis financiero correspondiente al id recibido
+    // Obtiene los datos del análisis financiero correspondiente al id recibido
     @GetMapping("/{id}")
-    public ResponseEntity<FinancialResponse> detallar(@PathVariable Long id){
+    public ResponseEntity<FinancialResponse> detallar(@PathVariable Long id) {
         return ResponseEntity.ok(financialService.buscarPorId(id));
     }
 }

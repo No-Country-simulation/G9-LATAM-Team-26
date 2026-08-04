@@ -1,17 +1,19 @@
 package com.equipo26.financeai.exception;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j; // 1. Agregamos la importación de Lombok
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -57,18 +59,38 @@ public class GlobalExceptionHandler {
         }
     }
 
-    public record ErrorResponse(int status, String mensaje, LocalDateTime fecha) {}
+    public record ErrorResponse(int status, String mensaje, LocalDateTime fecha) {
+    }
 
     // 500 - Cualquier otro error no controlado
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericError(Exception ex) {
+
         log.error("Error inesperado", ex);
 
         var error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Ocurrió un error inesperado. Intenta más tarde.",
-                LocalDateTime.now()
-        );
+                LocalDateTime.now());
         return ResponseEntity.internalServerError().body(error);
+    }
+
+    @ExceptionHandler(MlServiceException.class)
+    public ResponseEntity<Map<String, String>> handleMlService(MlServiceException ex) {
+        log.error("Error de integración con ML: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(NoResourceFoundException ex) {
+        log.warn("Recurso no encontrado: {}", ex.getResourcePath());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of(
+                        "status", 404,
+                        "mensaje", "La ruta solicitada no existe.",
+                        "fecha", LocalDateTime.now()));
     }
 }
