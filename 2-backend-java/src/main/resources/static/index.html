@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis Financiero</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input, select, button { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; margin-top: 10px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+
+    <h1>Análisis de Perfil Financiero</h1>
+    
+    <form id="financeForm">
+        <div class="form-group">
+            <label>Ingreso Mensual:</label>
+            <input type="number" id="ingreso" required>
+        </div>
+        <div class="form-group">
+            <label>Nivel de Endeudamiento (%):</label>
+            <input type="number" id="endeudamiento" required>
+        </div>
+        <div class="form-group">
+            <label>Frecuencia de Ahorro:</label>
+            <select id="ahorro">
+                <option value="Nula">Nula</option>
+                <option value="Baja">Baja</option>
+                <option value="Media">Media</option>
+                <option value="Alta">Alta</option>
+            </select>
+        </div>
+        <button type="submit">Analizar Finanzas</button>
+    </form>
+
+    <hr>
+
+    <div id="resultadoContainer" style="display: none;">
+        <h2>Resultados del Análisis</h2>
+        <pre id="resultadoJSON"></pre>
+    </div>
+
+    <script>
+        document.getElementById('financeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const payload = {
+                ingreso_mensual: Number(document.getElementById('ingreso').value),
+                nivel_endeudamiento: Number(document.getElementById('endeudamiento').value),
+                frecuencia_ahorro: document.getElementById('ahorro').value,
+                transacciones: [
+                    { descripcion: "Pago TDC Santander", valor: 3000 },
+                    { descripcion: "Compra en Walmart", valor: 950 }
+                ]
+            };
+
+            try {
+                // Como el HTML se sirve desde Spring Boot, usamos una ruta relativa
+                const response = await fetch('/analisis-financiero', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                document.getElementById('resultadoJSON').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('resultadoContainer').style.display = 'block';
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Hubo un error al conectar con el servidor.");
+            }
+        });
+    </script>
+</body>
+</html>

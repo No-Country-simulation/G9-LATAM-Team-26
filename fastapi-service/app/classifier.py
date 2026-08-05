@@ -15,9 +15,12 @@ Modelos (en la carpeta models/):
     predice el perfil (RandomForest) a partir de un vector de 37 features
 """
 from pathlib import Path
+import os
+import urllib.request
 
 import joblib # type: ignore
 import pandas as pd
+from dotenv import load_dotenv
 
 from app.schemas import AnalisisFinancieroRequest, TransaccionClasificada
 from app.schemas import Transaccion
@@ -27,11 +30,50 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Carga las variables definidas en el archivo .env (si existe) al entorno del proceso
+load_dotenv()
+
+# ---------------------------------------------------------------------------
+# Descarga de modelos desde OCI Object Storage (URLs Preautenticadas)
+# Las URLs viven en variables de entorno, NUNCA hardcodeadas en el código.
+# ---------------------------------------------------------------------------
+_MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
+_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
+OCI_URLS = {
+    "modelo_perfil_financiero.joblib": os.environ.get("OCI_URL_MODELO_PERFIL"),
+    "modelo_clasificador_transacciones.joblib": os.environ.get("OCI_URL_MODELO_CLASIFICADOR"),
+    "vectorizer_transacciones.joblib": os.environ.get("OCI_URL_VECTORIZER"),
+}
+
+_faltantes = [nombre for nombre, url in OCI_URLS.items() if not url]
+if _faltantes:
+    raise RuntimeError(
+        f"Faltan variables de entorno para descargar: {_faltantes}. "
+        "Revisa tu archivo .env (copia .env.example y llénalo con tus URLs de OCI)."
+    )
+
+
+def descargar_modelos_desde_oci() -> None:
+    """Descarga automáticamente los modelos desde OCI Object Storage si no están presentes localmente."""
+    logger.info("Verificando modelos en el entorno local / OCI...")
+    for nombre_archivo, url_oci in OCI_URLS.items():
+        ruta_destino = _MODELS_DIR / nombre_archivo
+        if not ruta_destino.exists():
+            logger.info("Descargando %s desde Oracle Cloud Storage...", nombre_archivo)
+            try:
+                urllib.request.urlretrieve(url_oci, ruta_destino)
+                logger.info("¡%s descargado con éxito!", nombre_archivo)
+            except Exception as e:
+                logger.error("Error al descargar %s desde OCI: %s", nombre_archivo, e)
+
+
+# Ejecutar la sincronización con OCI antes de cargar los modelos
+descargar_modelos_desde_oci()
+
 # ---------------------------------------------------------------------------
 # Carga de modelos
 # ---------------------------------------------------------------------------
-_MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
-
 modelo_perfil = joblib.load(_MODELS_DIR / "modelo_perfil_financiero.joblib")
 modelo_transacciones= joblib.load(_MODELS_DIR / "modelo_clasificador_transacciones.joblib")
 vectorizer_transacciones= joblib.load(_MODELS_DIR / "vectorizer_transacciones.joblib")

@@ -1,7 +1,6 @@
 package com.equipo26.financeai.exception;
 
-import lombok.extern.slf4j.Slf4j; // 1. Agregamos la importación de Lombok
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,10 +12,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
+@Slf4j // Esta anotación ya crea el objeto 'log' automáticamente
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    
+
 
     // 400 - Errores de validación (@Valid falló en FinancialRequest)
     @ExceptionHandler(MethodArgumentNotValidException.class)
