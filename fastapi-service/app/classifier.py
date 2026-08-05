@@ -178,4 +178,8 @@ def analizar(datos: AnalisisFinancieroRequest) -> Dict[str, Any]:
         "perfil_financiero": perfil_predicho,
         "probabilidad": round(confianza_prediccion, 2),
         "transacciones_clasificadas": transacciones_clasificadas,
+<<<<<<< HEAD
     }
+=======
+    }
+>>>>>>> 65880b4172c690979f332305b311885c36fe90c7
