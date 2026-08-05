@@ -15,10 +15,12 @@ Modelos (en la carpeta models/):
     predice el perfil (RandomForest) a partir de un vector de 37 features
 """
 from pathlib import Path
+import os
 import urllib.request
 
 import joblib # type: ignore
 import pandas as pd
+from dotenv import load_dotenv
 
 from app.schemas import AnalisisFinancieroRequest, TransaccionClasificada
 from app.schemas import Transaccion
@@ -28,17 +30,28 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Carga las variables definidas en el archivo .env (si existe) al entorno del proceso
+load_dotenv()
+
 # ---------------------------------------------------------------------------
 # Descarga de modelos desde OCI Object Storage (URLs Preautenticadas)
+# Las URLs viven en variables de entorno, NUNCA hardcodeadas en el código.
 # ---------------------------------------------------------------------------
 _MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 _MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 OCI_URLS = {
-    "modelo_perfil_financiero.joblib": "https://objectstorage.mx-queretaro-1.oraclecloud.com/p/iZVh77Dp-h5_XtZ3AJn50csc_DpOBD90VxRDUvGbTBxTZozC76Tju6KuatBidSky/n/axxinvusrzpy/b/financeai-models/o/modelo_perfil_financiero.joblib",
-    "modelo_clasificador_transacciones.joblib": "https://objectstorage.mx-queretaro-1.oraclecloud.com/p/UFC5jtEHqp7dlcUvy_BdveRKBQdY66_xJsQEj1x6kczcNtavojbONyx9bjvji4uH/n/axxinvusrzpy/b/financeai-models/o/modelo_clasificador_transacciones.joblib",
-    "vectorizer_transacciones.joblib": "https://objectstorage.mx-queretaro-1.oraclecloud.com/p/POzSGT6t56Mtm0kXXpWa_Ungs0VqKNYeLaNTHW8Mtv_MmGqYBdJlEM1KnayyLhJI/n/axxinvusrzpy/b/financeai-models/o/vectorizer_transacciones.joblib",
+    "modelo_perfil_financiero.joblib": os.environ.get("OCI_URL_MODELO_PERFIL"),
+    "modelo_clasificador_transacciones.joblib": os.environ.get("OCI_URL_MODELO_CLASIFICADOR"),
+    "vectorizer_transacciones.joblib": os.environ.get("OCI_URL_VECTORIZER"),
 }
+
+_faltantes = [nombre for nombre, url in OCI_URLS.items() if not url]
+if _faltantes:
+    raise RuntimeError(
+        f"Faltan variables de entorno para descargar: {_faltantes}. "
+        "Revisa tu archivo .env (copia .env.example y llénalo con tus URLs de OCI)."
+    )
 
 
 def descargar_modelos_desde_oci() -> None:
@@ -178,8 +191,4 @@ def analizar(datos: AnalisisFinancieroRequest) -> Dict[str, Any]:
         "perfil_financiero": perfil_predicho,
         "probabilidad": round(confianza_prediccion, 2),
         "transacciones_clasificadas": transacciones_clasificadas,
-<<<<<<< HEAD
     }
-=======
-    }
->>>>>>> 65880b4172c690979f332305b311885c36fe90c7

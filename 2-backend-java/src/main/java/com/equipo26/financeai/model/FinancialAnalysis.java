@@ -43,8 +43,4 @@ public class FinancialAnalysis {
     private List<String> recomendaciones;
 
     private LocalDateTime fechaCreacion;
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 65880b4172c690979f332305b311885c36fe90c7

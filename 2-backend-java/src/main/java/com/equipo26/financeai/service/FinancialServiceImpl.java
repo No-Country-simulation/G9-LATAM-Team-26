@@ -55,7 +55,7 @@ public class FinancialServiceImpl implements FinancialService {
 
     /**
      * Traduce el perfil del modelo a consejos accionables.
-     * Los strings del switch deben coincidir EXACTO con los que devuelve FastAPI.
+     * Los strings del switch deben coincidir con los que devuelve FastAPI.
      */
     private List<String> generarRecomendaciones(String perfil, FinancialRequest datos) {
         List<String> recomendaciones = new ArrayList<>();
