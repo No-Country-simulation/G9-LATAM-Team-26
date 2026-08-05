@@ -8,7 +8,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -38,8 +37,8 @@ public class FinancialRequest {
     // La frecuencia no puede ser un texto en blanco ni vacío
     @Schema(description = "Frecuencia con la que el usuario ahorra", example = "Media")
     @JsonProperty("frecuencia_ahorro")
-    @NotBlank(message = "La frecuencia de ahorro es obligatoria")
-    private String frecuenciaAhorro;
+    @NotNull(message = "La frecuencia_ahorro no puede ser nula. Valores permitidos: Nula, Baja, Media, Alta")
+    private FrecuenciaAhorro frecuenciaAhorro;
 
     // La lista no puede estar vacía y debe validar cada transacción interna
     @Schema(description = "Lista de transacciones a clasificar")

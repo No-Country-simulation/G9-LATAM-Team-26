@@ -16,6 +16,8 @@ import java.util.Map;
 @JsonPropertyOrder({ "perfil_financiero", "probabilidad", "resumen_gastos", "recomendaciones" })
 public class FinancialResponse {
 
+    private Long id;
+
     // Diagnóstico de la IA (Ej: "En observacion", "Saludable")
     @Schema(description = "Perfil financiero asignado al usuario", example = "Saludable")
     @JsonProperty("perfil_financiero")
