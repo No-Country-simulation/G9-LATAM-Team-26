@@ -12,6 +12,8 @@ import java.util.Map;
 @Data
 public class FinancialResponse {
 
+    private Long id;
+
     // Diagnóstico de la IA (Ej: "En observacion", "Saludable")
     @JsonProperty("perfil_financiero")
     private String perfilFinanciero;

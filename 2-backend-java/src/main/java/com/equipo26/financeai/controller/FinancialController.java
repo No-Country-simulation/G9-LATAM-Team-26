@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,7 +37,7 @@ public class FinancialController {
         log.info("Respuesta enviada: perfil={}, probabilidad={}",
                 resultado.getPerfilFinanciero(), resultado.getProbabilidad());
 
-        return ResponseEntity.ok(resultado);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resultado);
     }
 
     // Obtiene los datos del análisis financiero correspondiente al id recibido

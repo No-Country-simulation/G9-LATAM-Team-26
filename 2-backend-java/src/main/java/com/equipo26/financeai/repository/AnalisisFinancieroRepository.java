@@ -1,4 +1,9 @@
 package com.equipo26.financeai.repository;
 
-public class AnalisisFinancieroRepository {
+import com.equipo26.financeai.entity.AnalisisFinanciero;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface AnalisisFinancieroRepository extends JpaRepository<AnalisisFinanciero, Long> {
 }

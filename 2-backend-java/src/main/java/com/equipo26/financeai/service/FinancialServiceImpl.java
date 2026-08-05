@@ -5,6 +5,11 @@ import com.equipo26.financeai.dto.FinancialRequest;
 import com.equipo26.financeai.dto.FinancialResponse;
 import com.equipo26.financeai.dto.MlAnalysisResponse;
 import com.equipo26.financeai.dto.TransaccionClasificadaDTO;
+import com.equipo26.financeai.entity.AnalisisFinanciero;
+import com.equipo26.financeai.repository.AnalisisFinancieroRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,20 +25,44 @@ public class FinancialServiceImpl implements FinancialService {
     private static final double PORCENTAJE_AHORRO_SUGERIDO = 0.20;
 
     private final MlServiceClient mlServiceClient;
+    private final AnalisisFinancieroRepository repository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public FinancialResponse analizar(FinancialRequest datos) {
-        // El diagnóstico ya NO se calcula acá: lo produce el microservicio ML
+        // El diagnóstico lo produce el microservicio ML
         MlAnalysisResponse ml = mlServiceClient.analizar(datos);
 
         log.info("ML devolvió: perfil={}, {} transacciones clasificadas",
                 ml.getPerfilFinanciero(), ml.getTransaccionesClasificadas().size());
 
+        // Aca la data extra (agrupaciones y recomendaciones)
+        Map<String, Double> resumenGastos = agruparPorCategoria(ml.getTransaccionesClasificadas());
+        List<String> recomendaciones = generarRecomendaciones(ml.getPerfilFinanciero(), datos);
+
+        // Crear la entidad y guardar en la base de datos
+        AnalisisFinanciero entidad = new AnalisisFinanciero();
+        entidad.setPerfilFinanciero(ml.getPerfilFinanciero());
+        entidad.setProbabilidad(ml.getProbabilidad());
+
+        try {
+            // Transformar el Map y la List a Strings en formato JSON puro para guardarlos en H2
+            entidad.setResumenGastos(objectMapper.writeValueAsString(resumenGastos));
+            entidad.setRecomendaciones(objectMapper.writeValueAsString(recomendaciones));
+        } catch (JsonProcessingException e) {
+            log.error("Error convirtiendo estructuras a JSON para la BD", e);
+            throw new RuntimeException("Error interno al procesar el análisis");
+        }
+
+        AnalisisFinanciero guardado = repository.save(entidad); // Se guarda en H2
+
+        // Armar la respuesta final incluyendo el nuevo ID autogenerado
         FinancialResponse respuesta = new FinancialResponse();
-        respuesta.setPerfilFinanciero(ml.getPerfilFinanciero());
-        respuesta.setProbabilidad(ml.getProbabilidad());
-        respuesta.setResumenGastos(agruparPorCategoria(ml.getTransaccionesClasificadas()));
-        respuesta.setRecomendaciones(generarRecomendaciones(ml.getPerfilFinanciero(), datos));
+        respuesta.setId(guardado.getId());
+        respuesta.setPerfilFinanciero(guardado.getPerfilFinanciero());
+        respuesta.setProbabilidad(guardado.getProbabilidad());
+        respuesta.setResumenGastos(resumenGastos);
+        respuesta.setRecomendaciones(recomendaciones);
 
         return respuesta;
     }
@@ -85,6 +114,35 @@ public class FinancialServiceImpl implements FinancialService {
 
     @Override
     public FinancialResponse buscarPorId(Long id) {
-        return new FinancialResponse();
+        //Buscar el registro real en H2. Si no existe, lanzamos un error.
+        AnalisisFinanciero encontrado = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("No se encontró el análisis con ID: " + id));
+
+        // Crear la caja de respuesta
+        FinancialResponse respuesta = new FinancialResponse();
+
+        // Llenar la caja con los datos de la base de datos
+        respuesta.setId(encontrado.getId());
+        respuesta.setPerfilFinanciero(encontrado.getPerfilFinanciero());
+        respuesta.setProbabilidad(encontrado.getProbabilidad());
+
+        try {
+            // Hacer el proceso inverso: Leemos el texto de la base de datos y lo reconstruimos como Map y List
+            if (encontrado.getResumenGastos() != null) {
+                Map<String, Double> gastos = objectMapper.readValue(
+                        encontrado.getResumenGastos(), new TypeReference<Map<String, Double>>() {});
+                respuesta.setResumenGastos(gastos);
+            }
+            if (encontrado.getRecomendaciones() != null) {
+                List<String> recs = objectMapper.readValue(
+                        encontrado.getRecomendaciones(), new TypeReference<List<String>>() {});
+                respuesta.setRecomendaciones(recs);
+            }
+        } catch (JsonProcessingException e) {
+            log.error("Error reconstruyendo el JSON desde la BD", e);
+        }
+
+        // Devolver la caja llena
+        return respuesta;
     }
 }
