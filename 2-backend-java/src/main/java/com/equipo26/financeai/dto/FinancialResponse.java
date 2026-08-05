@@ -32,7 +32,7 @@ public class FinancialResponse {
     private Map<String, Double> resumenGastos;
 
     // Los consejos financieros van aca
-    @Schema(description = "Lista de recomendaciones financieras generadas", example = "✅ Tu nivel de endeudamiento está dentro de un rango saludable.")
+    @Schema(description = "Lista de recomendaciones financieras generadas", example = "Tu nivel de endeudamiento está dentro de un rango saludable.")
     @JsonProperty("recomendaciones")
     private List<String> recomendaciones;
 }
