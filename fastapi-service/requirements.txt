@@ -14,4 +14,5 @@ uvicorn==0.51.0
 scikit-learn==1.9.0
 joblib
 pandas
+python-dotenv==1.0.1
 numpy
