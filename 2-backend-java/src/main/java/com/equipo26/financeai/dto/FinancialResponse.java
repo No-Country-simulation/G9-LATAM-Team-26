@@ -13,9 +13,10 @@ import java.util.Map;
  */
 @Data
 @Schema(description = "Respuesta con el análisis financiero del usuario")
-@JsonPropertyOrder({ "perfil_financiero", "probabilidad", "resumen_gastos", "recomendaciones" })
+@JsonPropertyOrder({ "id", "perfil_financiero", "probabilidad", "resumen_gastos", "recomendaciones" })
 public class FinancialResponse {
 
+    @Schema(description = "ID del perfil generado automáticamente", example = "1")
     private Long id;
 
     // Diagnóstico de la IA (Ej: "En observacion", "Saludable")
@@ -34,7 +35,8 @@ public class FinancialResponse {
     private Map<String, Double> resumenGastos;
 
     // Los consejos financieros van aca
-    @Schema(description = "Lista de recomendaciones financieras generadas", example = "Tu nivel de endeudamiento está dentro de un rango saludable.")
+    @Schema(description = "Lista de recomendaciones financieras generadas", example = "[\"Tu nivel de endeudamiento está dentro de un rango saludable.\", \"Te recomendamos destinar al menos el 20% de tu ingreso mensual ($3000.00) a tu fondo de ahorro.\"]"
+    )
     @JsonProperty("recomendaciones")
     private List<String> recomendaciones;
 }

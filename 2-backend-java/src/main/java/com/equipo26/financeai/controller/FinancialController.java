@@ -1,10 +1,12 @@
 package com.equipo26.financeai.controller;
 
+import com.equipo26.financeai.exception.ErrorResponse;
 import com.equipo26.financeai.service.FinancialService;
 import com.equipo26.financeai.dto.FinancialRequest;
 import com.equipo26.financeai.dto.FinancialResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -46,8 +48,41 @@ public class FinancialController {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Datos de entrada inválidos(falla de validación)",
-                    content = @Content
+                    description = "Datos de entrada inválidos. Errores de validación o formato/tipo de dato incorrecto.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "Error de validación",
+                                            value = """
+                                                    [
+                                                     {
+                                                      "campo": "ingresoMensual",
+                                                      "mensaje": "El ingreso mensual no puede ser menor a 0"
+                                                     },
+                                                     {
+                                                      "campo": "nivelEndeudamiento",
+                                                      "mensaje": "El nivel de endeudamiento no puede superar el 100%"
+                                                     },
+                                                     {
+                                                      "campo": "frecuenciaAhorro",
+                                                      "mensaje": "La frecuencia_ahorro no puede ser nula. Valores permitidos: Nula, Baja, Media, Alta"
+                                                     }
+                                                    ]
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "Error de formato",
+                                            value = """
+                                                    {
+                                                      "status": 400,
+                                                      "mensaje": "El formato de los datos enviados no es válido.",
+                                                      "fecha": "2026-08-09T23:15:39"
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
             )
     })
     // Recibe la información financiera del usuario y retorna el diagnóstico
@@ -80,7 +115,20 @@ public class FinancialController {
             @ApiResponse(
                     responseCode = "404",
                     description = "No existe un análisis con ese id",
-                    content = @Content
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                            "status": 404,
+                                            "mensaje": "No se encontró un registro financiero con id: 100",
+                                            "fecha": "2026-08-09T23:30:00"
+                                            }
+                                            """
+                            )
+
+                    )
             )
     })
     // Obtiene los datos del análisis financiero correspondiente al id recibido

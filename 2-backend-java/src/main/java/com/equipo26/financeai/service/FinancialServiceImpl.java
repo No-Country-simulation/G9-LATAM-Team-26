@@ -6,6 +6,7 @@ import com.equipo26.financeai.dto.FinancialResponse;
 import com.equipo26.financeai.dto.MlAnalysisResponse;
 import com.equipo26.financeai.dto.TransaccionClasificadaDTO;
 import com.equipo26.financeai.entity.AnalisisFinanciero;
+import com.equipo26.financeai.exception.FinancialNotFoundException;
 import com.equipo26.financeai.repository.AnalisisFinancieroRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,7 +24,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FinancialServiceImpl implements FinancialService {
 
-    private static final double PORCENTAJE_AHORRO_SUGERIDO = 0.20;
+    private static final BigDecimal PORCENTAJE_AHORRO_SUGERIDO = new BigDecimal("0.20");
 
     private final MlServiceClient mlServiceClient;
     private final AnalisisFinancieroRepository repository;
@@ -102,11 +104,13 @@ public class FinancialServiceImpl implements FinancialService {
             }
         }
 
-        if (datos.getIngresoMensual() != null && datos.getIngresoMensual() > 0) {
-            double ahorroSugerido = datos.getIngresoMensual() * PORCENTAJE_AHORRO_SUGERIDO;
+        BigDecimal ingresoMensual = datos.getIngresoMensual();
+
+        if (ingresoMensual != null && ingresoMensual.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal ahorroSugerido = ingresoMensual.multiply(PORCENTAJE_AHORRO_SUGERIDO);
             recomendaciones.add(String.format(
                     "Te recomendamos destinar al menos el 20%% de tu ingreso mensual ($%.2f) a tu fondo de ahorro.",
-                    ahorroSugerido));
+                    ahorroSugerido.doubleValue()));
         }
 
         return recomendaciones;
@@ -116,7 +120,7 @@ public class FinancialServiceImpl implements FinancialService {
     public FinancialResponse buscarPorId(Long id) {
         //Buscar el registro real en H2. Si no existe, lanzamos un error.
         AnalisisFinanciero encontrado = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("No se encontró el análisis con ID: " + id));
+                .orElseThrow(() -> new FinancialNotFoundException(id));
 
         // Crear la caja de respuesta
         FinancialResponse respuesta = new FinancialResponse();
