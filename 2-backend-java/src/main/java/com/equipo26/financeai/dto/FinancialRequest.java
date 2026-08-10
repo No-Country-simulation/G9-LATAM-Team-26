@@ -3,10 +3,8 @@ package com.equipo26.financeai.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.Data;
-
 import java.math.BigDecimal;
 import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 
