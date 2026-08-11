@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 public class FinancialServiceImpl implements FinancialService {
 
     private static final BigDecimal PORCENTAJE_AHORRO_SUGERIDO = new BigDecimal("0.20");
+    private static final BigDecimal UMBRAL_MAXIMO_OCIO = new BigDecimal("0.15"); // Máximo 15% del ingreso en ocio
 
     private final MlServiceClient mlServiceClient;
     private final AnalisisFinancieroRepository repository;
@@ -39,7 +41,7 @@ public class FinancialServiceImpl implements FinancialService {
 
         // Aca la data extra (agrupaciones y recomendaciones)
         Map<String, Double> resumenGastos = agruparPorCategoria(ml.getTransaccionesClasificadas());
-        List<String> recomendaciones = generarRecomendaciones(ml.getPerfilFinanciero(), datos);
+        List<String> recomendaciones = generarRecomendaciones(ml.getPerfilFinanciero(), datos, resumenGastos);
 
         // Crear la entidad y guardar en la base de datos
         AnalisisFinanciero entidad = new AnalisisFinanciero();
@@ -84,19 +86,19 @@ public class FinancialServiceImpl implements FinancialService {
     }
 
     /**
-     * Traduce el perfil del modelo a consejos accionables.
-     * Los strings del switch deben coincidir con los que devuelve FastAPI.
+     * Traduce el perfil del modelo a consejos accionables, combinando reglas de negocio.
      */
-    private List<String> generarRecomendaciones(String perfil, FinancialRequest datos) {
+    private List<String> generarRecomendaciones(String perfil, FinancialRequest datos, Map<String, Double> resumenGastos) {
         List<String> recomendaciones = new ArrayList<>();
 
+        // Asignar recomendaciones según el perfil dictado por la IA
         switch (perfil) {
             case "En riesgo" -> recomendaciones.add(
-                    "Tu perfil financiero es de riesgo. Es recomendable reducir gastos y buscar asesoría financiera.");
+                    "🚨 Tu perfil financiero es de riesgo. Es recomendable reducir gastos y buscar asesoría financiera.");
             case "En observación" -> recomendaciones.add(
-                    "Tu situación requiere atención. Prioriza liquidar deudas de mayor interés y controlar gastos.");
+                    "⚠️ Tu situación requiere atención. Prioriza liquidar deudas de mayor interés y controlar gastos.");
             case "Saludable" -> recomendaciones.add(
-                    "Tu perfil financiero es saludable. Mantén tus hábitos actuales.");
+                    "✅ Tu perfil financiero es saludable. Mantén tus hábitos actuales.");
             default -> {
                 log.warn("Perfil financiero no reconocido recibido del ML: {}", perfil);
                 recomendaciones.add("Revisa tus finanzas con detalle para mantener un balance saludable.");
@@ -106,10 +108,21 @@ public class FinancialServiceImpl implements FinancialService {
         BigDecimal ingresoMensual = datos.getIngresoMensual();
 
         if (ingresoMensual != null && ingresoMensual.compareTo(BigDecimal.ZERO) > 0) {
+            // Regla de recomendación de ahorro
             BigDecimal ahorroSugerido = ingresoMensual.multiply(PORCENTAJE_AHORRO_SUGERIDO);
             recomendaciones.add(String.format(
-                    "Te recomendamos destinar al menos el 20%% de tu ingreso mensual ($%.2f) a tu fondo de ahorro.",
+                    "💡 Te recomendamos destinar al menos el 20%% de tu ingreso mensual ($%.2f) a tu fondo de ahorro.",
                     ahorroSugerido.doubleValue()));
+
+            // Regla para porcentajes de ocio y entretenimiento
+            Double gastoOcio = resumenGastos.getOrDefault("Entretenimiento y Ocio", 0.0);
+            BigDecimal maximoOcio = ingresoMensual.multiply(UMBRAL_MAXIMO_OCIO);
+
+            if (BigDecimal.valueOf(gastoOcio).compareTo(maximoOcio) > 0) {
+                recomendaciones.add(String.format(
+                        "🎭 Tus gastos en 'Entretenimiento y Ocio' ($%.2f) superan el 15%% de tus ingresos. Te sugerimos reducirlos para no afectar tu salud financiera.",
+                        gastoOcio));
+            }
         }
 
         return recomendaciones;
