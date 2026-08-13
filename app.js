@@ -8,7 +8,7 @@
      3. SWITCH DE TEMA           -> oscuro / claro, manual
      4. SLIDER DE ENDEUDAMIENTO  -> del formulario dentro del modal
      5. TABLA DE TRANSACCIONES   -> filas dinámicas del formulario
-     6. MODAL                   -> abrir/cerrar "Nuevo análisis"
+     6. MODAL                    -> abrir/cerrar "Nuevo análisis"
      7. MODO DEMO                -> cálculo local mientras no hay backend
      8. LLAMADA A LA API         -> real o mock, según CONFIG.USE_MOCK
      9. RENDER: Diagnóstico      -> perfil, mascota, barras de gasto
@@ -32,8 +32,8 @@
    CONFIGURACIÓN — AJUSTAR CUANDO BACKEND ESTÉ LISTO
    ========================================================= */
 const CONFIG = {
-  USE_MOCK: true, // <-- cambiar a false cuando el endpoint real esté desplegado
-  API_URL: "https://TU-BACKEND-AQUI.com/analisis-financiero",
+  USE_MOCK: false, // <-- cambiar a false cuando el endpoint real esté desplegado
+  API_URL: "http://localhost:8080/analisis-financiero",
 };
 
 /* =========================================================
