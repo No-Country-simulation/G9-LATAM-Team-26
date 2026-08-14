@@ -16,6 +16,9 @@ import jakarta.validation.Valid;
 @Schema(description = "Datos financieros del usuario para generar el análisis")
 public class FinancialRequest {
 
+    @Schema(description = "ID del análisis financiero (enviar solo para actualizar registros existentes)", example = "1")
+    private Long id;
+
     // El ingreso mensual no puede ser nulo ni menor a cero
     @Schema(description = "Ingreso mensual del usuario en pesos MXN", example ="15000.00")
     @JsonProperty("ingreso_mensual")

@@ -43,8 +43,16 @@ public class FinancialServiceImpl implements FinancialService {
         Map<String, Double> resumenGastos = agruparPorCategoria(ml.getTransaccionesClasificadas());
         List<String> recomendaciones = generarRecomendaciones(ml.getPerfilFinanciero(), datos, resumenGastos);
 
-        // Crear la entidad y guardar en la base de datos
-        AnalisisFinanciero entidad = new AnalisisFinanciero();
+        AnalisisFinanciero entidad;
+        // Verificamos si la petición del frontend ya trae un ID para actualizar
+        if (datos.getId() != null) {
+            entidad = repository.findById(datos.getId())
+                    .orElse(new AnalisisFinanciero()); // Si no lo encuentra por alguna razón, crea uno nuevo
+        } else {
+            entidad = new AnalisisFinanciero(); // Si no trae ID, es un registro 100% nuevo
+        }
+
+        // Se actualizan los datos (sea una entidad nueva o una recuperada de la BD)
         entidad.setPerfilFinanciero(ml.getPerfilFinanciero());
         entidad.setProbabilidad(ml.getProbabilidad());
 
@@ -57,9 +65,10 @@ public class FinancialServiceImpl implements FinancialService {
             throw new RuntimeException("Error interno al procesar el análisis");
         }
 
-        AnalisisFinanciero guardado = repository.save(entidad); // Se guarda en H2
+        // Si la entidad ya tenía su ID cargado, JPA hará automáticamente un UPDATE. Si no, hará un INSERT.
+        AnalisisFinanciero guardado = repository.save(entidad);
 
-        // Armar la respuesta final incluyendo el nuevo ID autogenerado
+        // Armar la respuesta final incluyendo el ID
         FinancialResponse respuesta = new FinancialResponse();
         respuesta.setId(guardado.getId());
         respuesta.setPerfilFinanciero(guardado.getPerfilFinanciero());
@@ -72,7 +81,6 @@ public class FinancialServiceImpl implements FinancialService {
 
     /**
      * Suma los valores de las transacciones agrupándolas por categoría.
-     * Este es el valor que agrega el backend Java sobre la salida cruda del ML.
      */
     private Map<String, Double> agruparPorCategoria(List<TransaccionClasificadaDTO> transacciones) {
         if (transacciones == null || transacciones.isEmpty()) {
@@ -91,7 +99,6 @@ public class FinancialServiceImpl implements FinancialService {
     private List<String> generarRecomendaciones(String perfil, FinancialRequest datos, Map<String, Double> resumenGastos) {
         List<String> recomendaciones = new ArrayList<>();
 
-        // Asignar recomendaciones según el perfil dictado por la IA
         switch (perfil) {
             case "En riesgo" -> recomendaciones.add(
                     "🚨 Tu perfil financiero es de riesgo. Es recomendable reducir gastos y buscar asesoría financiera.");
@@ -108,13 +115,11 @@ public class FinancialServiceImpl implements FinancialService {
         BigDecimal ingresoMensual = datos.getIngresoMensual();
 
         if (ingresoMensual != null && ingresoMensual.compareTo(BigDecimal.ZERO) > 0) {
-            // Regla de recomendación de ahorro
             BigDecimal ahorroSugerido = ingresoMensual.multiply(PORCENTAJE_AHORRO_SUGERIDO);
             recomendaciones.add(String.format(
                     "💡 Te recomendamos destinar al menos el 20%% de tu ingreso mensual ($%.2f) a tu fondo de ahorro.",
                     ahorroSugerido.doubleValue()));
 
-            // Regla para porcentajes de ocio y entretenimiento
             Double gastoOcio = resumenGastos.getOrDefault("Entretenimiento y Ocio", 0.0);
             BigDecimal maximoOcio = ingresoMensual.multiply(UMBRAL_MAXIMO_OCIO);
 
@@ -130,20 +135,15 @@ public class FinancialServiceImpl implements FinancialService {
 
     @Override
     public FinancialResponse buscarPorId(Long id) {
-        //Buscar el registro real en H2. Si no existe, lanzamos un error.
         AnalisisFinanciero encontrado = repository.findById(id)
                 .orElseThrow(() -> new FinancialNotFoundException(id));
 
-        // Crear la caja de respuesta
         FinancialResponse respuesta = new FinancialResponse();
-
-        // Llenar la caja con los datos de la base de datos
         respuesta.setId(encontrado.getId());
         respuesta.setPerfilFinanciero(encontrado.getPerfilFinanciero());
         respuesta.setProbabilidad(encontrado.getProbabilidad());
 
         try {
-            // Hacer el proceso inverso: Leemos el texto de la base de datos y lo reconstruimos como Map y List
             if (encontrado.getResumenGastos() != null) {
                 Map<String, Double> gastos = objectMapper.readValue(
                         encontrado.getResumenGastos(), new TypeReference<Map<String, Double>>() {});
@@ -158,7 +158,6 @@ public class FinancialServiceImpl implements FinancialService {
             log.error("Error reconstruyendo el JSON desde la BD", e);
         }
 
-        // Devolver la caja llena
         return respuesta;
     }
 }
