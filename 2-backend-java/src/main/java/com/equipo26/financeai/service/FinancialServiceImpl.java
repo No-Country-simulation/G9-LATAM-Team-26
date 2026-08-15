@@ -36,12 +36,29 @@ public class FinancialServiceImpl implements FinancialService {
         // El diagnóstico lo produce el microservicio ML
         MlAnalysisResponse ml = mlServiceClient.analizar(datos);
 
-        log.info("ML devolvió: perfil={}, {} transacciones clasificadas",
-                ml.getPerfilFinanciero(), ml.getTransaccionesClasificadas().size());
+        // Guardamos el perfil en una variable para poder modificarlo si se rompe la regla
+        String perfilFinal = ml.getPerfilFinanciero();
+
+        // CHICOS AQUI LA NUEVA REGLA DE NEGOCIO: VALIDACIÓN DE GASTOS VS INGRESOS
+        // 1. Sumamos todas las transacciones que vienen en el request
+        BigDecimal totalGastos = datos.getTransacciones().stream()
+                .map(t -> t.getValor())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 2. Si los gastos son mayores al ingreso, sobrescribimos lo que dijo la IA
+        if (totalGastos.compareTo(datos.getIngresoMensual()) > 0) {
+            perfilFinal = "Crítico";
+            log.warn("Regla de negocio activada: Los gastos ({}) superan los ingresos ({}). Perfil forzado a Crítico.", totalGastos, datos.getIngresoMensual());
+        }
+
+        log.info("Perfil final a guardar={}, {} transacciones clasificadas",
+                perfilFinal, ml.getTransaccionesClasificadas().size());
 
         // Aca la data extra (agrupaciones y recomendaciones)
         Map<String, Double> resumenGastos = agruparPorCategoria(ml.getTransaccionesClasificadas());
-        List<String> recomendaciones = generarRecomendaciones(ml.getPerfilFinanciero(), datos, resumenGastos);
+
+        // Le pasamos el perfilFinal (que ya está evaluado) para que genere las recomendaciones correctas
+        List<String> recomendaciones = generarRecomendaciones(perfilFinal, datos, resumenGastos);
 
         AnalisisFinanciero entidad;
         // Verificamos si la petición del frontend ya trae un ID para actualizar
@@ -52,8 +69,8 @@ public class FinancialServiceImpl implements FinancialService {
             entidad = new AnalisisFinanciero(); // Si no trae ID, es un registro 100% nuevo
         }
 
-        // Se actualizan los datos (sea una entidad nueva o una recuperada de la BD)
-        entidad.setPerfilFinanciero(ml.getPerfilFinanciero());
+        // Se actualizan los datos (usamos perfilFinal en lugar del ml directo)
+        entidad.setPerfilFinanciero(perfilFinal);
         entidad.setProbabilidad(ml.getProbabilidad());
 
         try {
@@ -100,6 +117,8 @@ public class FinancialServiceImpl implements FinancialService {
         List<String> recomendaciones = new ArrayList<>();
 
         switch (perfil) {
+            case "Crítico" -> recomendaciones.add(
+                    "🚨 ¡Tu situación financiera es crítica!!! Tus gastos son más elevados que tu ingreso.");
             case "En riesgo" -> recomendaciones.add(
                     "🚨 Tu perfil financiero es de riesgo. Es recomendable reducir gastos y buscar asesoría financiera.");
             case "En observación" -> recomendaciones.add(
