@@ -9,4 +9,5 @@ public interface FinancialService {
     // Recibe los datos necesarios para realizar un análisis financiero y devuelve el resultado de ese análisis
     FinancialResponse analizar(FinancialRequest datos);
     FinancialResponse buscarPorId(Long id);
+    FinancialResponse editar(Long id, FinancialRequest datos);
 }

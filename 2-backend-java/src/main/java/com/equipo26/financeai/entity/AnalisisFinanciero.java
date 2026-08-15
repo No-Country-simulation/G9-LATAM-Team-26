@@ -1,7 +1,10 @@
 package com.equipo26.financeai.entity;
 
+import com.equipo26.financeai.dto.FrecuenciaAhorro;
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.math.BigDecimal;
 
 @Data
 @Entity
@@ -11,6 +14,12 @@ public class AnalisisFinanciero {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    private BigDecimal ingresoMensual;
+
+    private Integer nivelEndeudamiento;
+
+    private FrecuenciaAhorro frecuenciaAhorro;
 
     private String perfilFinanciero;
 

@@ -31,6 +31,8 @@
 /* =========================================================
    CONFIGURACIÓN — AJUSTAR CUANDO BACKEND ESTÉ LISTO
    ========================================================= */
+let analisisActualId = null;
+
 const CONFIG = {
   USE_MOCK: false, // <-- cambiar a false cuando el endpoint real esté desplegado
   API_URL: "http://localhost:8080/analisis-financiero",
@@ -336,15 +338,23 @@ function mockAnalizarFinanzas(payload) {
    LLAMADA A LA API (real o mock según CONFIG.USE_MOCK)
    ========================================================= */
 async function llamarAPI(payload) {
+  console.log("Entre a llamarAPI");
+  console.log("analisisActualId: ", analisisActualId);
   if (CONFIG.USE_MOCK) {
     await new Promise(r => setTimeout(r, 500)); // simula latencia de red
     return mockAnalizarFinanzas(payload);
   }
-  // --- Reemplazar por esto cuando Backend esté desplegado ---
-  const resp = await fetch(CONFIG.API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+  const esActualizacion = analisisActualId !== null;
+  const url = esActualizacion 
+    ? `${CONFIG.API_URL}/${analisisActualId}`
+    : CONFIG.API_URL;
+
+    const metodo = esActualizacion ? "PUT" : "POST";
+    
+    const resp = await fetch(url, {
+      method: metodo,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
   });
   if (!resp.ok) throw new Error(`Error del servidor: ${resp.status}`);
   return resp.json();
@@ -353,6 +363,20 @@ async function llamarAPI(payload) {
 document.getElementById("mode-hint").textContent = CONFIG.USE_MOCK
   ? "⚙ Modo demo local — aún no conectado al backend real."
   : "";
+
+/* =========================================================
+   ACTUALIZAR ANALISIS DEL USUARIO
+   ========================================================= */
+async function actualizarAnalisis(id, datos){
+  const resp = await fetch(`${CONFIG.API_URL}/${id}`,{
+    method: "PUT",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(datos),
+  });
+  if (!resp.ok) throw new Error(`Error del servidor: ${resp.status}`);
+  return resp.json();
+}
+
 
 /* =========================================================
    RENDER DE RESULTADOS
@@ -440,7 +464,7 @@ function renderRecomendaciones(resultado) {
 /* =========================================================
    RENDER DEL DASHBOARD "INICIO"
    ========================================================= */
-let ultimasTransacciones = [];
+let ultimasTransacciones = null;
 let mostrarTodasTx = false;
 
 function renderInicio(resultado, payload) {
@@ -557,6 +581,7 @@ async function ejecutarAnalisis(payload, { esModal } = {}) {
 
   try {
     const resultado = await llamarAPI(payload);
+    analisisActualId = resultado.id ?? analisisActualId;
     renderDiagnostico(resultado, payload);
     renderRecomendaciones(resultado);
     renderInicio(resultado, payload);

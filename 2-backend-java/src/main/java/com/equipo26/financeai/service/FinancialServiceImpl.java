@@ -1,10 +1,7 @@
 package com.equipo26.financeai.service;
 
 import com.equipo26.financeai.client.MlServiceClient;
-import com.equipo26.financeai.dto.FinancialRequest;
-import com.equipo26.financeai.dto.FinancialResponse;
-import com.equipo26.financeai.dto.MlAnalysisResponse;
-import com.equipo26.financeai.dto.TransaccionClasificadaDTO;
+import com.equipo26.financeai.dto.*;
 import com.equipo26.financeai.entity.AnalisisFinanciero;
 import com.equipo26.financeai.exception.FinancialNotFoundException;
 import com.equipo26.financeai.repository.AnalisisFinancieroRepository;
@@ -60,14 +57,7 @@ public class FinancialServiceImpl implements FinancialService {
         // Le pasamos el perfilFinal (que ya está evaluado) para que genere las recomendaciones correctas
         List<String> recomendaciones = generarRecomendaciones(perfilFinal, datos, resumenGastos);
 
-        AnalisisFinanciero entidad;
-        // Verificamos si la petición del frontend ya trae un ID para actualizar
-        if (datos.getId() != null) {
-            entidad = repository.findById(datos.getId())
-                    .orElse(new AnalisisFinanciero()); // Si no lo encuentra por alguna razón, crea uno nuevo
-        } else {
-            entidad = new AnalisisFinanciero(); // Si no trae ID, es un registro 100% nuevo
-        }
+        AnalisisFinanciero entidad = new AnalisisFinanciero();
 
         // Se actualizan los datos (usamos perfilFinal en lugar del ml directo)
         entidad.setPerfilFinanciero(perfilFinal);
@@ -176,6 +166,55 @@ public class FinancialServiceImpl implements FinancialService {
         } catch (JsonProcessingException e) {
             log.error("Error reconstruyendo el JSON desde la BD", e);
         }
+
+        return respuesta;
+    }
+
+    @Override
+    public FinancialResponse editar(Long id, FinancialRequest datos) {
+        //Buscar el registro existente, en caso contrario, lanzar excepción
+        AnalisisFinanciero existente = repository.findById(id)
+                .orElseThrow(() -> new FinancialNotFoundException(id));
+
+        // Volver a mandar los datos actualizados al microservicio ML
+        FinancialRequest requestParaMl = new FinancialRequest();
+        requestParaMl.setIngresoMensual(datos.getIngresoMensual());
+        requestParaMl.setFrecuenciaAhorro(datos.getFrecuenciaAhorro());
+        requestParaMl.setNivelEndeudamiento(datos.getNivelEndeudamiento());
+        requestParaMl.setTransacciones(datos.getTransacciones());
+
+        MlAnalysisResponse ml = mlServiceClient.analizar(requestParaMl);
+        log.info("ML devolvio (update): perfil={}, {} transacciones clasificadas",
+                ml.getPerfilFinanciero(), ml.getTransaccionesClasificadas().size());
+
+        // Recalcular resumen y recomendaciones con la misma lógica de analizar
+        Map<String, Double> resumenGastos = agruparPorCategoria(ml.getTransaccionesClasificadas());
+        List<String> recomendaciones = generarRecomendaciones(ml.getPerfilFinanciero(), requestParaMl, resumenGastos);
+
+        //Actualizar los campos del registro Existente
+        existente.setPerfilFinanciero(ml.getPerfilFinanciero());
+        existente.setProbabilidad(ml.getProbabilidad());
+        existente.setIngresoMensual(datos.getIngresoMensual());
+        existente.setNivelEndeudamiento(datos.getNivelEndeudamiento());
+        existente.setFrecuenciaAhorro(datos.getFrecuenciaAhorro());
+
+        try {
+            existente.setResumenGastos(objectMapper.writeValueAsString(resumenGastos));
+            existente.setRecomendaciones(objectMapper.writeValueAsString(recomendaciones));
+        }catch (JsonProcessingException e){
+            log.error("Error convirtiendo estructura a JSON para la BD", e);
+            throw new RuntimeException("Error interno al procesar la actualización");
+        }
+        // save() con un id existente
+        AnalisisFinanciero actualizado = repository.save(existente);
+
+        //Armar la respuesta
+        FinancialResponse respuesta = new FinancialResponse();
+        respuesta.setId(actualizado.getId());
+        respuesta.setPerfilFinanciero(actualizado.getPerfilFinanciero());
+        respuesta.setProbabilidad(actualizado.getProbabilidad());
+        respuesta.setResumenGastos(resumenGastos);
+        respuesta.setRecomendaciones(recomendaciones);
 
         return respuesta;
     }
