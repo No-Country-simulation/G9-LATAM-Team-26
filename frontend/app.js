@@ -33,11 +33,20 @@
    ========================================================= */
 let analisisActualId = null;
 
-const CONFIG = {
-  USE_MOCK: false, // <-- cambiar a false cuando el endpoint real esté desplegado
-  API_URL: "http://localhost:8080/analisis-financiero",
-};
+// Detecta automáticamente si la app corre en tu máquina (localhost) o ya
+// desplegada en Render — así nunca se te olvida cambiar la URL a mano y
+// se rompe para el resto de las personas que abren el sitio.
+const IS_LOCAL = ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
+const CONFIG = {
+  USE_MOCK: false,
+  // Cuando tengas la URL final del backend en Render, ponla aquí:
+  PROD_API_URL: "https://flowfi-backend-java.onrender.com",
+  LOCAL_API_URL: "http://localhost:8080/analisis-financiero",
+  get API_URL() {
+    return IS_LOCAL ? this.LOCAL_API_URL : this.PROD_API_URL;
+  },
+};
 /* =========================================================
    NOTIFICACIONES (toast) — reemplaza a los alert() del navegador
    ========================================================= */
