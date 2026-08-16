@@ -19,4 +19,7 @@ public class MlAnalysisResponse {
 
     @JsonProperty("transacciones_clasificadas")
     private List<TransaccionClasificadaDTO> transaccionesClasificadas;
+
+    @JsonProperty("factores_clave")
+    private List<String> factoresClave;
 }

@@ -3,8 +3,14 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 from fastapi import FastAPI
-from app.schemas import AnalisisFinancieroRequest, AnalisisFinancieroResponse
-from app.classifier import analizar
+from typing import List
+from app.schemas import (
+    AnalisisFinancieroRequest,
+    AnalisisFinancieroResponse,
+    ClasificarTransaccionesRequest,
+    TransaccionClasificada,
+)
+from app.classifier import analizar, clasificar_transacciones
 
 app = FastAPI(
     title="Finance AI - Microservicio de Clasificación",
@@ -28,3 +34,12 @@ def analisis_financiero(datos: AnalisisFinancieroRequest):
     """
     resultado = analizar(datos)
     return AnalisisFinancieroResponse(**resultado)
+
+
+@app.post("/clasificar-transaccion", response_model=List[TransaccionClasificada])
+def clasificar_transaccion(datos: ClasificarTransaccionesRequest):
+    """
+    Clasifica una o varias transacciones por su descripción (Alimentación,
+    Transporte, Salud, etc.), sin calcular el perfil financiero completo.
+    """
+    return clasificar_transacciones(datos.transacciones)

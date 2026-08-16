@@ -83,8 +83,47 @@
   .brand-left{
     display:flex; align-items:center; gap: 9px;
   }
+  .brand-logo-wrap{
+    position:relative; display:inline-block;
+    width: 40px; height:40px;
+  }
+  .brand-logo-wrap--small{ width: 34px; height:34px; }
   .brand-logo{
-    width: 32px; height:32px; object-fit:contain; display:block;
+    width: 100%; height:100%; object-fit:contain; display:block;
+  }
+  /* Ojos kawaii del logo: mismo estilo que la mascota (círculos + boquita),
+     con el centro un poco más arriba porque el logo tiene el texto
+     "FlowFi" debajo del casco */
+  .brand-logo-eyes{
+    position:absolute; top:38%; left:48%;
+    transform: translate(-50%,-50%) perspective(160px) rotateY(-12deg);
+    width:31%; display:flex; justify-content:space-between; align-items:center;
+  }
+  .brand-logo-eye{
+    width: 34%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #EDCA55;
+    animation: mascota-blink 5s ease-in-out infinite;
+  }
+  .brand-logo-boca{
+    position:absolute; top:50%; left:46%;
+    transform: translate(-50%,-50%) perspective(160px) rotateY(-12deg);
+    width: 20%; aspect-ratio: 2.2 / 1;
+    border-bottom: 2px solid #EDCA55;
+    border-radius: 0 0 999px 999px;
+  }
+  /* Mismas variaciones de expresión que la mascota, aplicadas al logo */
+  .logo-mood--feliz .brand-logo-eye{ animation-duration: 2.4s; }
+  .logo-mood--serio .brand-logo-boca{ border-radius: 999px; aspect-ratio: 3/1; }
+  .logo-mood--preocupado .brand-logo-eye{ animation-duration: 2.4s; }
+  .logo-mood--preocupado .brand-logo-boca{
+    transform: translate(-50%,-50%) perspective(160px) rotateY(-12deg) skewX(10deg);
+  }
+  .logo-mood--triste .brand-logo-eye{ animation:none; opacity:.85; }
+  .logo-mood--triste .brand-logo-boca{
+    border-bottom:none; border-top: 2px solid #EDCA55;
+    border-radius: 999px 999px 0 0; top: 54%;
   }
   .brand-name{
     font-family: var(--font-display);
@@ -273,19 +312,41 @@
   /* ---------- DIAGNOSTICO ---------- */
   .mascota-wrap{
     display:flex; flex-direction:column; align-items:center; text-align:center;
-    margin-bottom: 18px;
+    margin-bottom: 28px;
+  }
+  .mascota-figure{
+    position: relative;
+    width: 96px; height:96px;
+    margin-bottom: 8px;
   }
   .mascota-img{
-    width: 96px; height:96px; object-fit:contain;
-    margin-bottom: 8px;
+    width: 96px; height:96px; object-fit:contain; margin-bottom:8px;
+  }
+
+  /* Variaciones de expresión según el perfil financiero */
+  .mascota-figure--feliz .mascota-eye{ animation-duration: 2.4s; }
+  .mascota-figure--feliz .mascota-boca{ border-width: 4px; }
+  .mascota-figure--confiado .mascota-boca{ }
+  .mascota-figure--serio .mascota-boca{
+    border-radius: 999px; aspect-ratio: 3 / 1; /* boca plana, neutral */
+  }
+  .mascota-figure--preocupado .mascota-eye{ animation-duration: 2.4s; }
+  .mascota-figure--preocupado .mascota-boca{
+    transform: translate(-50%,-50%) skewX(12deg);
+  }
+  .mascota-figure--triste .mascota-eye{ animation: none; opacity:.85; }
+  .mascota-figure--triste .mascota-boca{
+    border-bottom:none; border-top: 3px solid #EDCA55;
+    border-radius: 999px 999px 0 0; /* boca invertida = triste */
+    top: 48%;
   }
   .mascota-msg{
     font-size: 13px; color: var(--ink-soft); margin:0; max-width: 280px;
   }
   .profile-card{
     border-radius: var(--radius);
-    padding: 20px;
-    margin-bottom: 20px;
+    padding: 22px;
+    margin-bottom: 28px;
     border: 1px solid var(--border);
   }
   .profile-label{
@@ -307,9 +368,9 @@
 
   .bars-title{
     font-size: 12.5px; font-weight:600; color: var(--ink-soft);
-    text-transform: uppercase; letter-spacing:.06em; margin: 0 0 12px;
+    text-transform: uppercase; letter-spacing:.06em; margin: 8px 0 16px;
   }
-  .bar-row{ margin-bottom: 12px; }
+  .bar-row{ margin-bottom: 16px; }
   .bar-row-top{
     display:flex; justify-content:space-between; margin-bottom:4px;
     font-size: 12.5px;
@@ -331,8 +392,8 @@
     display:flex; gap: 12px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 14px 16px;
-    margin-bottom: 12px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
   }
   .rec-icon{
     flex-shrink:0;
@@ -360,10 +421,10 @@
       display:flex;
       align-items:flex-start;
       justify-content:center;
-      padding: 48px 24px;
+      padding: 56px 40px;
     }
     .shell{
-      max-width: 920px;
+      max-width: 1440px;
       width:100%;
       min-height:auto;
       flex-direction: row;
@@ -374,35 +435,35 @@
     }
     header{
       flex: 1 0 100%;
-      padding: 34px 36px 0;
+      padding: 40px 48px 0;
     }
     .brand-name{ font-size: 22px; }
-    .brand-logo{ width: 38px; height:38px; }
+    .brand-logo-wrap{ width: 52px; height:52px; }
     .pulse-wrap{ max-width: 420px; }
 
     nav.tabs{
-      flex: 0 0 200px;
+      flex: 0 0 220px;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       background: var(--bg);
-      margin: 22px 0 36px 36px;
-      padding: 10px;
+      margin: 28px 0 40px 48px;
+      padding: 14px;
       border-radius: 16px;
       align-self: flex-start;
     }
     nav.tabs button{
       text-align:left;
-      padding: 12px 14px;
+      padding: 14px 16px;
       border-radius: 10px;
     }
 
     main{
       flex: 1;
       min-width: 0;
-      padding: 26px 36px 44px;
+      padding: 36px 56px 60px;
       border-left: 1px solid var(--border);
     }
-    h2.screen-title{ font-size: 22px; }
+    h2.screen-title{ font-size: 24px; margin-bottom: 24px; }
 
     .tx-row-bottom{ grid-template-columns: 1fr 32px; }
   }
@@ -413,7 +474,7 @@
      abajo. Reutiliza los tokens de color pero con una paleta
      oscura propia mientras esta pestaña está activa.
      ========================================================= */
-  body.theme-dark .shell{
+  body.theme-dark{
     --bg: #0B1412;
     --surface: #13221F;
     --ink: #F3F6F5;
@@ -427,7 +488,7 @@
     margin-bottom: 20px;
   }
   .dash-logo-img{
-    width: 34px; height:34px; object-fit:contain; display:block;
+    width: 100%; height:100%; object-fit:contain; display:block;
   }
   .dash-nav{
     font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft);
@@ -444,7 +505,7 @@
     display:flex; align-items:center; justify-content:space-between; gap:14px;
     border-radius: var(--radius);
     padding: 18px 20px;
-    margin-bottom: 16px;
+    margin-bottom: 28px;
     border: 1px solid var(--border);
   }
   .score-ring{
@@ -459,11 +520,11 @@
   .score-ring-inner span{ font-family: var(--font-mono); font-weight:700; font-size:12.5px; }
 
   .dash-stats{
-    display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;
-    margin: 0 0 24px;
+    display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;
+    margin: 0 0 32px;
   }
   .dash-stat{
-    border: 1px solid var(--border); border-radius: 12px; padding: 11px 10px;
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px 12px;
   }
   .dash-stat span{ display:block; font-size:10px; color: var(--ink-soft); margin-bottom:4px; }
   .dash-stat strong{ font-family: var(--font-mono); font-size: 13px; }
@@ -489,7 +550,7 @@
 
   .dash-tx-header{
     display:flex; align-items:center; justify-content:space-between;
-    margin: 24px 0 10px;
+    margin: 32px 0 14px;
   }
   .dash-tx-header span{
     font-size:12.5px; font-weight:600; color: var(--ink-soft);
@@ -546,3 +607,35 @@
     .modal-overlay{ align-items:center; }
     .modal-card{ border-radius: 20px; }
   }
+
+/* =========================================================
+   TOASTS — notificaciones elegantes, reemplazan a alert()
+   ========================================================= */
+#toast-container{
+  position: fixed;
+  top: 20px; left: 50%; transform: translateX(-50%);
+  z-index: 9999;
+  display:flex; flex-direction:column; gap:8px;
+  pointer-events:none;
+  width: min(360px, calc(100vw - 32px));
+}
+.toast{
+  background: #14231F;
+  color: #F5F5F0;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-left: 3px solid #e3573a;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+.toast--visible{
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast--error{ border-left-color: #e3573a; }
+.toast--success{ border-left-color: #1f9d63; }

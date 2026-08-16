@@ -74,11 +74,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MlServiceException.class)
     public ResponseEntity<Map<String, String>> handleMlService(MlServiceException ex) {
         log.error("Error de integración con ML: {}", ex.getMessage());
-        var error = new ErrorResponse(
-                HttpStatus.SERVICE_UNAVAILABLE.value(),
-                ex.getMessage(),
-                LocalDateTime.now()
-        );
 
         return ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)

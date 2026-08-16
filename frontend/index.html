@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<!--
+  FlowFi — Asistente de Salud Financiera
+  ========================================
+
+  Estructura de la página:
+    1. <header>           -> logo + nombre + switch de tema
+    2. <nav class="tabs"> -> navegación entre las 3 pantallas
+    3. <main>             -> las 3 pantallas (Inicio, Diagnóstico, Recomendaciones)
+    4. modal-overlay       -> formulario de "Nuevo análisis" (fuera de .shell
+                              a propósito, para que el position:fixed cubra
+                              toda la pantalla sin problemas de z-index)
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowFi — Salud Financiera</title>
+<link rel="icon" type="image/png" href="img/flowfi-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+
+<div class="shell">
+
+  <header>
+    <div class="brand-row">
+      <div class="brand-left">
+        <span class="brand-logo-wrap">
+          <img src="img/flowfi-logo.png" alt="Logo de FlowFi" class="brand-logo">
+          <span class="brand-logo-eyes">
+            <span class="brand-logo-eye"></span>
+            <span class="brand-logo-eye"></span>
+          </span>
+        </span>
+        <span class="brand-name">FlowFi</span>
+      </div>
+      <div class="header-right">
+        <span class="brand-tag">MVP · Hackathon</span>
+        <button type="button" id="theme-toggle" class="theme-toggle" title="Cambiar tema" aria-label="Cambiar a tema claro">🌙</button>
+      </div>
+    </div>
+    <div class="pulse-wrap">
+      <svg viewBox="0 0 300 30" preserveAspectRatio="none">
+        <path class="pulse-path" d="M0,15 L60,15 L75,15 L85,3 L95,27 L105,8 L115,15 L140,15 L300,15" />
+      </svg>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-screen="inicio">Inicio</button>
+    <button class="tab-btn" data-screen="diagnostico">Diagnóstico</button>
+    <button class="tab-btn" data-screen="recomendaciones">Recomendaciones</button>
+  </nav>
+
+  <main>
+
+    <!-- ===================== SCREEN 1: INICIO (dashboard) ===================== -->
+    <section class="screen active" id="screen-inicio">
+      <div class="dash-topbar">
+        <span class="brand-logo-wrap brand-logo-wrap--small">
+          <img src="img/flowfi-logo.png" alt="Logo de FlowFi" class="dash-logo-img">
+          <span class="brand-logo-eyes">
+            <span class="brand-logo-eye"></span>
+            <span class="brand-logo-eye"></span>
+          </span>
+        </span>
+        <div class="dash-nav">Inicio · Transacciones · Perfil</div>
+        <div class="dash-avatar">TU</div>
+      </div>
+
+      <div id="dash-profile-card">
+        <div class="empty-state">Cargando tu resumen...</div>
+      </div>
+
+      <div class="dash-stats" id="dash-stats"></div>
+
+      <p class="bars-title">Gasto por categoría</p>
+      <div id="dash-bars"></div>
+
+      <div class="dash-tx-header">
+        <span>Últimas transacciones</span>
+        <button type="button" id="dash-ver-todas">Ver todas</button>
+      </div>
+      <div id="dash-tx-list"></div>
+
+      <button type="button" class="fab-add" id="fab-add" title="Nuevo análisis">+</button>
+    </section>
+
+    <!-- ===================== SCREEN 2: DIAGNOSTICO ===================== -->
+    <section class="screen" id="screen-diagnostico">
+      <h2 class="screen-title">Tu diagnóstico</h2>
+      <p class="screen-sub">Basado en tu último análisis.</p>
+      <div id="diagnostico-content">
+        <div class="empty-state">Aún no has hecho un análisis.<br>Ve a la pestaña Inicio para empezar.</div>
+      </div>
+    </section>
+
+    <!-- ===================== SCREEN 3: RECOMENDACIONES ===================== -->
+    <section class="screen" id="screen-recomendaciones">
+      <h2 class="screen-title">Recomendaciones</h2>
+      <p class="screen-sub">Acciones sugeridas para tu perfil actual.</p>
+      <div id="recomendaciones-content">
+        <div class="empty-state">Aún no hay recomendaciones.<br>Analiza tus finanzas primero.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== MODAL: NUEVO ANÁLISIS ===================== -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>Nuevo análisis</h3>
+      <button type="button" id="modal-close">✕</button>
+    </div>
+
+    <div class="field">
+      <label for="ingreso">Ingreso mensual (MXN)</label>
+      <input type="number" id="ingreso" value="15000" min="0" step="500">
+    </div>
+
+    <div class="field">
+      <label for="ahorro">Frecuencia de ahorro</label>
+      <select id="ahorro">
+        <option value="Nula">Nula</option>
+        <option value="Baja">Baja</option>
+        <option value="Media" selected>Media</option>
+        <option value="Alta">Alta</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Transacciones recientes</label>
+      <p class="hint" style="margin:0 0 10px; text-align:left;">
+        Tip: elige categoría y comercio para cada transacción. Si registras
+        pagos en la categoría "Deudas" (tarjeta, préstamos, etc.), tu nivel
+        de endeudamiento se calcula automáticamente a partir de ellas.
+      </p>
+      <div id="tx-list"></div>
+      <button type="button" class="add-row" id="add-tx">+ Agregar transacción</button>
+    </div>
+
+    <button class="btn-primary" id="analizar-btn">Analizar mi salud financiera</button>
+    <p class="hint" id="mode-hint"></p>
+  </div>
+</div>
+
+<script src="app.js"></script>
+
+
+</body>
+</html>

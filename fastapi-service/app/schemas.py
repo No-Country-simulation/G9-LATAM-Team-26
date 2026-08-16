@@ -16,6 +16,11 @@ class AnalisisFinancieroRequest(BaseModel):
     transacciones: List[Transaccion]
 
 
+class ClasificarTransaccionesRequest(BaseModel):
+    """Entrada para el endpoint dedicado /clasificar-transaccion (sin perfil)."""
+    transacciones: List[Transaccion]
+
+
 # -------------- Salida ---------------
 
 class TransaccionClasificada(BaseModel):
@@ -27,3 +32,4 @@ class AnalisisFinancieroResponse(BaseModel):
     perfil_financiero: str
     probabilidad: float
     transacciones_clasificadas: List[TransaccionClasificada]
+    factores_clave: List[str] = []

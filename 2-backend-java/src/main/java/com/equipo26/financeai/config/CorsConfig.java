@@ -1,23 +1,30 @@
 package com.equipo26.financeai.config;
 
-import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-@Configuration
-public class CorsConfig {
-    @Bean
-    public WebMvcConfigurer corsConfigurer(){
-        return new WebMvcConfigurer() {
+/*
+    Habilita CORS para que el frontend pueda llamar a esta API.
 
-        @Override
-        public void addCorsMappings(CorsRegistry registry){
-            registry.addMapping("/analisis-financiero/**")
-            .allowedOrigins("http://127.0.0.1:3000", "http://127.0.0.1:5500")
-            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-            .allowedHeaders("*");
-            }
-        };
+    El origen permitido se lee de la propiedad "app.cors.allowed-origins"
+    (variable de entorno CORS_ALLOWED_ORIGINS en producción). Por defecto
+    permite todo ("*") para que la demo del hackathon funcione sin fricción;
+    en producción real conviene restringirlo al dominio real del frontend.
+*/
+@Configuration
+public class CorsConfig implements WebMvcConfigurer {
+
+    @Value("${app.cors.allowed-origins:*}")
+    private String allowedOrigins;
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOriginPatterns(allowedOrigins.split(","))
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .maxAge(3600);
     }
 }

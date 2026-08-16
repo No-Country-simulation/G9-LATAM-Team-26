@@ -67,6 +67,7 @@ public class FinancialServiceImpl implements FinancialService {
             // Transformar el Map y la List a Strings en formato JSON puro para guardarlos en H2
             entidad.setResumenGastos(objectMapper.writeValueAsString(resumenGastos));
             entidad.setRecomendaciones(objectMapper.writeValueAsString(recomendaciones));
+            entidad.setFactoresClave(objectMapper.writeValueAsString(ml.getFactoresClave()));
         } catch (JsonProcessingException e) {
             log.error("Error convirtiendo estructuras a JSON para la BD", e);
             throw new RuntimeException("Error interno al procesar el análisis");
@@ -82,6 +83,7 @@ public class FinancialServiceImpl implements FinancialService {
         respuesta.setProbabilidad(guardado.getProbabilidad());
         respuesta.setResumenGastos(resumenGastos);
         respuesta.setRecomendaciones(recomendaciones);
+        respuesta.setFactoresClave(ml.getFactoresClave());
 
         return respuesta;
     }
@@ -163,6 +165,11 @@ public class FinancialServiceImpl implements FinancialService {
                         encontrado.getRecomendaciones(), new TypeReference<List<String>>() {});
                 respuesta.setRecomendaciones(recs);
             }
+            if (encontrado.getFactoresClave() != null) {
+                List<String> factores = objectMapper.readValue(
+                        encontrado.getFactoresClave(), new TypeReference<List<String>>() {});
+                respuesta.setFactoresClave(factores);
+            }
         } catch (JsonProcessingException e) {
             log.error("Error reconstruyendo el JSON desde la BD", e);
         }
@@ -201,6 +208,7 @@ public class FinancialServiceImpl implements FinancialService {
         try {
             existente.setResumenGastos(objectMapper.writeValueAsString(resumenGastos));
             existente.setRecomendaciones(objectMapper.writeValueAsString(recomendaciones));
+            existente.setFactoresClave(objectMapper.writeValueAsString(ml.getFactoresClave()));
         }catch (JsonProcessingException e){
             log.error("Error convirtiendo estructura a JSON para la BD", e);
             throw new RuntimeException("Error interno al procesar la actualización");
@@ -215,7 +223,14 @@ public class FinancialServiceImpl implements FinancialService {
         respuesta.setProbabilidad(actualizado.getProbabilidad());
         respuesta.setResumenGastos(resumenGastos);
         respuesta.setRecomendaciones(recomendaciones);
+        respuesta.setFactoresClave(ml.getFactoresClave());
 
         return respuesta;
+    }
+
+    @Override
+    public TransaccionClasificadaDTO[] clasificarTransacciones(ClasificarTransaccionesRequest datos) {
+        // Passthrough simple: no calcula perfil ni persiste, solo clasifica.
+        return mlServiceClient.clasificarTransacciones(datos);
     }
 }

@@ -1,0 +1,58 @@
+# Blueprint de Render: define los 3 servicios de FlowFi para desplegarlos
+# juntos con un solo clic desde https://dashboard.render.com/blueprints
+#
+# Antes de desplegar:
+#   1. Sube este repo a GitHub (si no lo has hecho).
+#   2. En Render: New > Blueprint > conecta el repo > Apply.
+#   3. Completa a mano las 3 variables OCI_URL_* del servicio "flowfi-ml-service"
+#      (Render no las lee de este archivo por seguridad, van marcadas sync:false).
+#   4. Cuando termine el deploy, copia la URL pública del "flowfi-backend-java"
+#      y pégala en frontend/app.js (CONFIG.PROD_API_URL), vuelve a subir el
+#      cambio y redeploy el sitio estático.
+
+services:
+  # --- Microservicio ML (FastAPI) ---
+  - type: web
+    name: flowfi-ml-service
+    runtime: docker
+    dockerContext: ./fastapi-service
+    dockerfilePath: ./fastapi-service/Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: OCI_URL_MODELO_PERFIL
+        sync: false
+      - key: OCI_URL_MODELO_CLASIFICADOR
+        sync: false
+      - key: OCI_URL_VECTORIZER
+        sync: false
+
+  # --- Backend Java (Spring Boot) ---
+  - type: web
+    name: flowfi-backend-java
+    runtime: docker
+    dockerContext: ./2-backend-java
+    dockerfilePath: ./2-backend-java/Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: ML_SERVICE_HOST
+        fromService:
+          name: flowfi-ml-service
+          type: web
+          property: host
+      - key: ML_SERVICE_PORT
+        fromService:
+          name: flowfi-ml-service
+          type: web
+          property: port
+      - key: ML_SERVICE_URL
+        value: "http://${ML_SERVICE_HOST}:${ML_SERVICE_PORT}"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "*" # cámbialo por la URL real del frontend cuando la tengas
+
+  # --- Frontend (sitio estático) ---
+  - type: web
+    name: flowfi-frontend
+    runtime: static
+    staticPublishPath: ./frontend

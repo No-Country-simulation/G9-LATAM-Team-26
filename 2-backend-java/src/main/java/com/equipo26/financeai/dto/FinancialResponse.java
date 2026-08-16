@@ -13,7 +13,7 @@ import java.util.Map;
  */
 @Data
 @Schema(description = "Respuesta con el análisis financiero del usuario")
-@JsonPropertyOrder({ "id", "perfil_financiero", "probabilidad", "resumen_gastos", "recomendaciones" })
+@JsonPropertyOrder({ "id", "perfil_financiero", "probabilidad", "resumen_gastos", "recomendaciones", "factores_clave" })
 public class FinancialResponse {
 
     @Schema(description = "ID del perfil generado automáticamente", example = "1")
@@ -39,4 +39,9 @@ public class FinancialResponse {
     )
     @JsonProperty("recomendaciones")
     private List<String> recomendaciones;
+
+    // Explicabilidad: qué variables pesaron más en la predicción del modelo
+    @Schema(description = "Las 3 variables que más influyen en el modelo de perfil financiero", example = "[\"frecuencia_ahorro_ord\", \"nivel_endeudamiento\", \"pct_gasto_riesgo\"]")
+    @JsonProperty("factores_clave")
+    private List<String> factoresClave;
 }

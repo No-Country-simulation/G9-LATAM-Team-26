@@ -139,7 +139,7 @@ public class FinancialController {
 
     //Actualiza los datos del usuario correspondiente al id
     @PutMapping("/{id}")
-    public ResponseEntity editar(@PathVariable Long id, @RequestBody FinancialRequest datos){
+    public ResponseEntity<FinancialResponse> editar(@PathVariable Long id, @RequestBody FinancialRequest datos){
         return ResponseEntity.ok(financialService.editar(id, datos));
     }
 }

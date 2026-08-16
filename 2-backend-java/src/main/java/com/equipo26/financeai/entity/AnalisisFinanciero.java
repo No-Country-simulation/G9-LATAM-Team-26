@@ -31,4 +31,7 @@ public class AnalisisFinanciero {
 
     @Column(length = 2500)
     private String recomendaciones;
+
+    @Column(length = 500)
+    private String factoresClave;
 }

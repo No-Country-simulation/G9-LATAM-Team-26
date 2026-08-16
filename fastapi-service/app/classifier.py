@@ -83,6 +83,13 @@ logger.info("Modelos cargados: perfil=%s, clasificador=%s", type(modelo_perfil).
 # Columnas esperadas por el modelo de perfil.
 COLUMNAS_MODELO_PERFIL = list(modelo_perfil.feature_names_in_)
 
+# Explicabilidad: las 3 variables que más pesan en la predicción del modelo
+# (RandomForest expone feature_importances_ directamente, sin necesidad de
+# librerías externas como SHAP). Se calcula una sola vez al cargar el modelo.
+_indices_top_features = modelo_perfil.feature_importances_.argsort()[::-1][:3]
+FACTORES_CLAVE_MODELO = [COLUMNAS_MODELO_PERFIL[i] for i in _indices_top_features]
+logger.info("Factores clave del modelo de perfil (top 3): %s", FACTORES_CLAVE_MODELO)
+
 # ---------------------------------------------------------------------------
 # Constantes y helpers (copiados fielmente del notebook de Data Science)
 # ---------------------------------------------------------------------------
@@ -164,6 +171,22 @@ def _construir_features_usuario(datos: AnalisisFinancieroRequest, trans_df: pd.D
 
 
 # ---------------------------------------------------------------------------
+# Punto de entrada público para el endpoint dedicado /clasificar-transaccion
+# (clasifica sin calcular el perfil financiero completo).
+# ---------------------------------------------------------------------------
+def clasificar_transacciones(transacciones: List[Transaccion]) -> List[TransaccionClasificada]:
+    df = _procesar_transacciones(transacciones)
+    return [
+        TransaccionClasificada(
+            descripcion=transaccion["descripcion"],
+            valor=transaccion["valor"],
+            categoria=transaccion["categoria"],
+        )
+        for _, transaccion in df.iterrows()
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Punto de entrada del módulo.
 # ---------------------------------------------------------------------------
 def analizar(datos: AnalisisFinancieroRequest) -> Dict[str, Any]:
@@ -191,4 +214,5 @@ def analizar(datos: AnalisisFinancieroRequest) -> Dict[str, Any]:
         "perfil_financiero": perfil_predicho,
         "probabilidad": round(confianza_prediccion, 2),
         "transacciones_clasificadas": transacciones_clasificadas,
+        "factores_clave": FACTORES_CLAVE_MODELO,
     }
