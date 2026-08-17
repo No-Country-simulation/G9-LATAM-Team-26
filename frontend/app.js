@@ -349,7 +349,7 @@ function mockAnalizarFinanzas(payload) {
   });
 
   const recomendaciones = [];
-  if (payload.nivel_endeudamiento > 35) {
+  if (payload.nivel_endeudamiento > 40) {
     recomendaciones.push(`Tu nivel de endeudamiento (${payload.nivel_endeudamiento}%) está por encima del recomendado; prioriza las deudas con mayor tasa de interés.`);
   }
   if (payload.frecuencia_ahorro === "Nula" || payload.frecuencia_ahorro === "Baja") {

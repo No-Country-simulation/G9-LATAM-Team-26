@@ -22,7 +22,14 @@ import java.util.stream.Collectors;
 public class FinancialServiceImpl implements FinancialService {
 
     private static final BigDecimal PORCENTAJE_AHORRO_SUGERIDO = new BigDecimal("0.20");
-    private static final BigDecimal UMBRAL_MAXIMO_OCIO = new BigDecimal("0.15"); // Máximo 15% del ingreso en ocio
+    private static final BigDecimal UMBRAL_MAXIMO_OCIO = new BigDecimal("0.15"); // Máximo 15% del ingreso en categorías discrecionales
+    private static final int UMBRAL_ENDEUDAMIENTO_ALTO = 40;
+
+    // Categorías consideradas "discrecionales": es razonable sugerir reducirlas.
+    // No incluye Vivienda, Servicios, Salud, etc. porque esas naturalmente pueden
+    // superar el 15% del ingreso sin que eso sea un problema financiero.
+    private static final List<String> CATEGORIAS_DISCRECIONALES =
+            List.of("Entretenimiento", "Suscripciones", "Ropa", "Mascotas");
 
     private final MlServiceClient mlServiceClient;
     private final AnalisisFinancieroRepository repository;
@@ -34,19 +41,7 @@ public class FinancialServiceImpl implements FinancialService {
         MlAnalysisResponse ml = mlServiceClient.analizar(datos);
 
         // Guardamos el perfil en una variable para poder modificarlo si se rompe la regla
-        String perfilFinal = ml.getPerfilFinanciero();
-
-        // CHICOS AQUI LA NUEVA REGLA DE NEGOCIO: VALIDACIÓN DE GASTOS VS INGRESOS
-        // 1. Sumamos todas las transacciones que vienen en el request
-        BigDecimal totalGastos = datos.getTransacciones().stream()
-                .map(t -> t.getValor())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // 2. Si los gastos son mayores al ingreso, sobrescribimos lo que dijo la IA
-        if (totalGastos.compareTo(datos.getIngresoMensual()) > 0) {
-            perfilFinal = "Crítico";
-            log.warn("Regla de negocio activada: Los gastos ({}) superan los ingresos ({}). Perfil forzado a Crítico.", totalGastos, datos.getIngresoMensual());
-        }
+        String perfilFinal = determinarPerfilFinal(ml.getPerfilFinanciero(), datos);
 
         log.info("Perfil final a guardar={}, {} transacciones clasificadas",
                 perfilFinal, ml.getTransaccionesClasificadas().size());
@@ -103,45 +98,100 @@ public class FinancialServiceImpl implements FinancialService {
     }
 
     /**
-     * Traduce el perfil del modelo a consejos accionables, combinando reglas de negocio.
+     * Aplica la regla de negocio que fuerza el perfil a "Crítico" cuando la suma
+     * de las transacciones del período supera el ingreso mensual, sin importar
+     * lo que haya devuelto el modelo ML.
      */
-    private List<String> generarRecomendaciones(String perfil, FinancialRequest datos, Map<String, Double> resumenGastos) {
+    private String determinarPerfilFinal(String perfilMl, FinancialRequest datos) {
+        if (datos.getIngresoMensual() == null) {
+            return perfilMl;
+        }
+
+        BigDecimal totalGastos = datos.getTransacciones().stream()
+                .map(t -> t.getValor())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalGastos.compareTo(datos.getIngresoMensual()) > 0) {
+            log.warn("Regla de negocio activada: Los gastos ({}) superan los ingresos ({}). Perfil forzado a Crítico.", totalGastos, datos.getIngresoMensual());
+            return "Crítico";
+        }
+
+        return perfilMl;
+    }
+
+    /**
+     * Traduce el perfil del modelo y los datos financieros a consejos accionables,
+     * combinando reglas de negocio.
+     */
+    private List<String> generarRecomendaciones(String perfil, FinancialRequest datos,
+                                                  Map<String, Double> resumenGastos) {
         List<String> recomendaciones = new ArrayList<>();
 
-        switch (perfil) {
-            case "Crítico" -> recomendaciones.add(
-                    "🚨 ¡Tu situación financiera es crítica!!! Tus gastos son más elevados que tu ingreso.");
-            case "En riesgo" -> recomendaciones.add(
-                    "🚨 Tu perfil financiero es de riesgo. Es recomendable reducir gastos y buscar asesoría financiera.");
-            case "En observación" -> recomendaciones.add(
-                    "⚠️ Tu situación requiere atención. Prioriza liquidar deudas de mayor interés y controlar gastos.");
-            case "Saludable" -> recomendaciones.add(
-                    "✅ Tu perfil financiero es saludable. Mantén tus hábitos actuales.");
-            default -> {
-                log.warn("Perfil financiero no reconocido recibido del ML: {}", perfil);
-                recomendaciones.add("Revisa tus finanzas con detalle para mantener un balance saludable.");
-            }
-        }
+        recomendaciones.add(recomendacionPerfil(perfil));
 
         BigDecimal ingresoMensual = datos.getIngresoMensual();
-
         if (ingresoMensual != null && ingresoMensual.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal ahorroSugerido = ingresoMensual.multiply(PORCENTAJE_AHORRO_SUGERIDO);
-            recomendaciones.add(String.format(
-                    "💡 Te recomendamos destinar al menos el 20%% de tu ingreso mensual ($%.2f) a tu fondo de ahorro.",
-                    ahorroSugerido.doubleValue()));
+            recomendaciones.add(recomendacionAhorro(ingresoMensual));
+            recomendaciones.addAll(recomendacionesCategoriasDiscrecionales(ingresoMensual, resumenGastos));
+        }
 
-            Double gastoOcio = resumenGastos.getOrDefault("Entretenimiento y Ocio", 0.0);
-            BigDecimal maximoOcio = ingresoMensual.multiply(UMBRAL_MAXIMO_OCIO);
+        recomendacionEndeudamiento(datos.getNivelEndeudamiento()).ifPresent(recomendaciones::add);
+        recomendacionFrecuenciaAhorro(datos.getFrecuenciaAhorro()).ifPresent(recomendaciones::add);
 
-            if (BigDecimal.valueOf(gastoOcio).compareTo(maximoOcio) > 0) {
-                recomendaciones.add(String.format(
-                        "🎭 Tus gastos en 'Entretenimiento y Ocio' ($%.2f) superan el 15%% de tus ingresos. Te sugerimos reducirlos para no afectar tu salud financiera.",
-                        gastoOcio));
+        return recomendaciones;
+    }
+
+    private String recomendacionPerfil(String perfil) {
+        return switch (perfil) {
+            case "Crítico" -> "🚨 ¡Tu situación financiera es crítica!!! Tus gastos son más elevados que tu ingreso.";
+            case "En riesgo" -> "🚨 Tu perfil financiero es de riesgo. Es recomendable reducir gastos y buscar asesoría financiera.";
+            case "En observación" -> "⚠️ Tu situación requiere atención. Prioriza liquidar deudas de mayor interés y controlar gastos.";
+            case "Saludable" -> "✅ Tu perfil financiero es saludable. Mantén tus hábitos actuales.";
+            default -> {
+                log.warn("Perfil financiero no reconocido recibido del ML: {}", perfil);
+                yield "Revisa tus finanzas con detalle para mantener un balance saludable.";
+            }
+        };
+    }
+
+    private String recomendacionAhorro(BigDecimal ingresoMensual) {
+        BigDecimal ahorroSugerido = ingresoMensual.multiply(PORCENTAJE_AHORRO_SUGERIDO);
+        return String.format(
+                "💡 Te recomendamos destinar al menos el 20%% de tu ingreso mensual ($%.2f) a tu fondo de ahorro.",
+                ahorroSugerido.doubleValue());
+    }
+
+    private List<String> recomendacionesCategoriasDiscrecionales(BigDecimal ingresoMensual, Map<String, Double> resumenGastos) {
+        BigDecimal maximoDiscrecional = ingresoMensual.multiply(UMBRAL_MAXIMO_OCIO);
+        List<String> mensajes = new ArrayList<>();
+
+        for (String categoria : CATEGORIAS_DISCRECIONALES) {
+            Double gasto = resumenGastos.getOrDefault(categoria, 0.0);
+            if (BigDecimal.valueOf(gasto).compareTo(maximoDiscrecional) > 0) {
+                mensajes.add(String.format(
+                        "🎭 Tus gastos en '%s' ($%.2f) superan el 15%% de tus ingresos. Te sugerimos reducirlos para no afectar tu salud financiera.",
+                        categoria, gasto));
             }
         }
 
-        return recomendaciones;
+        return mensajes;
+    }
+
+    private Optional<String> recomendacionEndeudamiento(Integer nivelEndeudamiento) {
+        if (nivelEndeudamiento != null && nivelEndeudamiento > UMBRAL_ENDEUDAMIENTO_ALTO) {
+            return Optional.of(String.format(
+                    "📉 Tu nivel de endeudamiento (%d%%) es alto. Prioriza liquidar las deudas con mayor tasa de interés antes de asumir nuevos compromisos.",
+                    nivelEndeudamiento));
+        }
+        return Optional.empty();
+    }
+
+    private Optional<String> recomendacionFrecuenciaAhorro(FrecuenciaAhorro frecuenciaAhorro) {
+        if (frecuenciaAhorro == FrecuenciaAhorro.NULA || frecuenciaAhorro == FrecuenciaAhorro.BAJA) {
+            return Optional.of(
+                    "🐷 Aumentar tu frecuencia de ahorro, aunque sea con montos pequeños, mejoraría tu perfil financiero.");
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -194,12 +244,15 @@ public class FinancialServiceImpl implements FinancialService {
         log.info("ML devolvio (update): perfil={}, {} transacciones clasificadas",
                 ml.getPerfilFinanciero(), ml.getTransaccionesClasificadas().size());
 
+        // Misma regla de negocio que analizar(): si los gastos superan el ingreso, el perfil es Crítico
+        String perfilFinal = determinarPerfilFinal(ml.getPerfilFinanciero(), requestParaMl);
+
         // Recalcular resumen y recomendaciones con la misma lógica de analizar
         Map<String, Double> resumenGastos = agruparPorCategoria(ml.getTransaccionesClasificadas());
-        List<String> recomendaciones = generarRecomendaciones(ml.getPerfilFinanciero(), requestParaMl, resumenGastos);
+        List<String> recomendaciones = generarRecomendaciones(perfilFinal, requestParaMl, resumenGastos);
 
         //Actualizar los campos del registro Existente
-        existente.setPerfilFinanciero(ml.getPerfilFinanciero());
+        existente.setPerfilFinanciero(perfilFinal);
         existente.setProbabilidad(ml.getProbabilidad());
         existente.setIngresoMensual(datos.getIngresoMensual());
         existente.setNivelEndeudamiento(datos.getNivelEndeudamiento());
