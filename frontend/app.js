@@ -248,6 +248,78 @@ document.getElementById("add-tx").addEventListener("click", () => addTxRow());
 addTxRow();
 
 /* =========================================================
+   CARGA DESDE CSV
+   Permite cargar varias transacciones de una sola vez (útil para
+   demos/videos) en vez de agregarlas una por una a mano. Formato
+   esperado: dos columnas con encabezado, "comercio,monto". El
+   ingreso mensual y la frecuencia de ahorro no se tocan.
+   ========================================================= */
+function parseCSV(texto) {
+  const lineas = texto.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  if (lineas.length < 2) return [];
+
+  const encabezados = lineas[0].split(",").map(h => h.trim().toLowerCase());
+  const idxComercio = encabezados.indexOf("descripcion");
+  const idxMonto = encabezados.indexOf("valor");
+  if (idxComercio === -1 || idxMonto === -1) return [];
+
+  return lineas.slice(1).map(linea => {
+    const cols = linea.split(",");
+    return {
+      comercio: (cols[idxComercio] || "").trim(),
+      monto: (cols[idxMonto] || "").trim(),
+    };
+  });
+}
+
+function cargarTransaccionesDesdeCSV(filas) {
+  if (filas.length === 0) {
+    mostrarToast("El CSV está vacío o no tiene las columnas 'comercio,monto'.");
+    return;
+  }
+
+  const validas = [];
+  let omitidas = 0;
+
+  filas.forEach(({ comercio, monto }) => {
+    const categoriaSlug = COMERCIO_A_CATEGORIA[comercio.toLowerCase()];
+    const categoria = Object.keys(CATALOGO).find(cat => slugCategoria(cat) === categoriaSlug);
+    const valor = Number(monto);
+
+    if (!categoria || Number.isNaN(valor) || valor <= 0) {
+      omitidas++;
+      return;
+    }
+    validas.push({ categoria, comercio, valor });
+  });
+
+  if (validas.length === 0) {
+    mostrarToast("Ninguna fila del CSV es válida. Revisa que los comercios existan en el catálogo y los montos sean mayores a 0.");
+    return;
+  }
+
+  txList.innerHTML = "";
+  validas.forEach(({ categoria, comercio, valor }) => addTxRow(categoria, comercio, valor));
+
+  mostrarToast(`Se cargaron ${validas.length} transacciones desde el CSV.`, "success");
+  if (omitidas > 0) {
+    mostrarToast(`Se omitieron ${omitidas} filas por comercio desconocido o monto inválido.`);
+  }
+}
+
+document.getElementById("csv-upload-btn").addEventListener("click", () => {
+  document.getElementById("csv-input").click();
+});
+document.getElementById("csv-input").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => cargarTransaccionesDesdeCSV(parseCSV(reader.result));
+  reader.readAsText(file);
+  e.target.value = ""; // permite volver a elegir el mismo archivo
+});
+
+/* =========================================================
    MODAL: ABRIR / CERRAR
    ========================================================= */
 const modalOverlay = document.getElementById("modal-overlay");
