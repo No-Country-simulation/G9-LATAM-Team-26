@@ -41,7 +41,7 @@ const IS_LOCAL = ["localhost", "127.0.0.1"].includes(window.location.hostname);
 const CONFIG = {
   USE_MOCK: false,
   // Cuando tengas la URL final del backend en Render, ponla aquí:
-  PROD_API_URL: "https://flowfi-backend-java.onrender.com",
+  PROD_API_URL: "https://flowfi-backend-java.onrender.com/analisis-financiero",
   LOCAL_API_URL: "http://localhost:8080/analisis-financiero",
   get API_URL() {
     return IS_LOCAL ? this.LOCAL_API_URL : this.PROD_API_URL;
@@ -486,21 +486,23 @@ function renderDiagnostico(resultado, payload) {
   document.getElementById("diagnostico-content").innerHTML = `
     <div class="mascota-wrap">
       <img src="${rutaMascota(estadoMascota)}" alt="FlowFi ${estadoMascota}" class="mascota-img">
-      <p class="mascota-msg">${MENSAJE_MASCOTA[estadoMascota]}</p>
         <div class="mascota-eyes">
           <span class="mascota-eye"></span>
           <span class="mascota-eye"></span>
         </div>
         <span class="mascota-boca"></span>
         <span class="mascota-lagrima"></span>
-      </div>
-      <p class="mascota-msg">${MENSAJE_MASCOTA[estadoMascota]}</p>
+        
+        <!-- Mensaje único -->
+        <p class="mascota-msg">${MENSAJE_MASCOTA[estadoMascota]}</p>
     </div>
+    
     <div class="profile-card" style="border-color:${color}55; background:${color}0D;">
       <p class="profile-label">Tu perfil financiero</p>
       <p class="profile-value" style="color:${color};">${resultado.perfil_financiero}</p>
       <p class="profile-conf">Confianza del modelo: ${Math.round(resultado.probabilidad*100)}%</p>
     </div>
+    
     <p class="bars-title">Gasto por categoría</p>
     ${barsHtml}
   `;
