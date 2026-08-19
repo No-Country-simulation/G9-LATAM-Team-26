@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
@@ -30,9 +31,12 @@ public class MlServiceClient {
         this.restTemplate = builder
                 .connectTimeout(Duration.ofSeconds(65))
                 .readTimeout(Duration.ofSeconds(65))
+                .requestFactory(SimpleClientHttpRequestFactory.class)
                 .build();
         this.baseUrl = baseUrl;
+        log.info("ClientHttpRequestFactory en uso: {}", restTemplate.getRequestFactory().getClass().getName());
     }
+
 
     public MlAnalysisResponse analizar(FinancialRequest datos) {
         try {

@@ -289,6 +289,13 @@
     margin: 4px 0 24px;
   }
 
+  .csv-upload-row{
+    margin: 4px 0 10px;
+  }
+  .csv-upload-row .add-row{
+    margin: 0;
+  }
+
   .btn-primary{
     width:100%;
     border:none;
