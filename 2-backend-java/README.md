@@ -24,7 +24,64 @@ El backend está organizado siguiendo una separación por responsabilidades, uti
 |Maven             | Gestión de dependencias y build    |
 |Docker            | Contenerización                    |
 
-Las dependencias y versiones utilizadas se encuentran definidas en `pom.xml`. El proyecto está configurado en Java 17 y SpringBoot 4.1.0
+Las dependencias y versiones utilizadas se encuentran definidas en `pom.xml`. El proyecto está configurado en Java 17 y SpringBoot 4.1.0.
+
+---
+
+## 🔌 API REST
+La API REST desarrollada cuenta con los siguientes Endpoints:
+
+|`Método`	 |Endpoint	  | Descripción  |
+|----------|------------|--------------|
+|`POST`	|`/analisis-financiero`	|Realiza un análisis financiero completo|
+|`GET`	|`/analisis-financiero/{id}`	|Consulta un análisis guardado|
+|`PUT`	|`/analisis-financiero/{id}`	|Edita un análisis y recalcula el diagnóstico|
+|`POST`	|`/clasificar-transaccion`	|Clasifica una o varias transacciones|
+
+### 📌 Ejemplos de uso
+
+#### Solicitud
+
+```json
+{
+  "ingreso_mensual": 4500,
+  "nivel_endeudamiento": 25,
+  "frecuencia_ahorro": "Media",
+  "transacciones": [
+    {
+      "descripcion": "Supermercado",
+      "valor": 420
+    },
+    {
+      "descripcion": "Combustible",
+      "valor": 300
+    },
+    {
+      "descripcion": "Streaming",
+      "valor": 40
+    }
+  ]
+}
+```
+
+#### Respuesta
+
+```json
+{
+  "perfil_financiero": "En observación",
+  "probabilidad": 0.82,
+  "resumen_gastos": {
+    "alimentacion": 420,
+    "transporte": 300,
+    "entretenimiento": 40
+  },
+  "recomendaciones": [
+    "Monitorear gastos recurrentes de entretenimiento",
+    "Aumentar reserva financiera mensual"
+  ]
+}
+```
+---
 
 ## 📁 Estructura del proyecto
 ```bash
@@ -226,7 +283,9 @@ El archivo `application.properties` contiene configuraciones como:
 - Configuración de logs.
 - Variables específicas del entorno.
 
-**Nota**: Las credenciales, API Keys y demás información sensible deberían gestionarse mediante variables de entorno.
+> [!NOTE]
+> Las credenciales, API Keys y demás información sensible deberían gestionarse mediante variables de entorno.
+
 ---
 
 ### 📌 Resumen de responsabilidades
@@ -254,9 +313,6 @@ Las dependencias estan administradas mediante Maven en el archivo `pom.xml`
 - `org.projectlombok:lombok`: Reduce código repetitivo mediante anotaciones como `@Getter`,`@Setter`, `@NoArgsConstructor`, `@AllArgsConstructor`.
 - `com.fasterxml.jackson.core:jackson-databind`: Se utiliza para convertir objetos Java a JSON y viceversa.
 - `org.springdoc:springdoc-openapi-starter-webmvc-ui`: Permite generar la documentación OpenAPI/Swagger para los endpoints de la aplicación.
-
-
-
 
 ## ▶️ Ejecución local
 **Requisitos**
